@@ -1,0 +1,51 @@
+{% extends 'authentication/base_auth.html' %}
+
+{% block content %}
+<div class="container my-5">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="display-4">Welcome, {{ request.user.first_name }}!</h1>
+            <p class="lead">Here's a quick overview of your school management dashboard.</p>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Courses</h5>
+                    <p class="card-text">Manage and assign courses to teachers and students.</p>
+                    <a href="#" class="btn btn-primary">View Courses</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Teachers</h5>
+                    <p class="card-text">Manage teacher profiles and assignments.</p>
+                    <a href="#" class="btn btn-primary">View Teachers</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Students</h5>
+                    <p class="card-text">Add and manage student information.</p>
+                    <a href="#" class="btn btn-primary">View Students</a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Attendance</h5>
+                    <p class="card-text">Track and manage student attendance for each course.</p>
+                    <a href="#" class="btn btn-primary">View Attendance</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

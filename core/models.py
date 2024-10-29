@@ -1,14 +1,14 @@
+# users/models.py
+from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin
 from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django.contrib.auth.base_user import BaseUserManager
 
-from django.db import models
-from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
-
-# Custom User Manager
-class UserManager(BaseUserManager):
+class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
-            raise ValueError('The Email field is required')
+            raise ValueError(_('The Email field must be set'))
         email = self.normalize_email(email)
         user = self.model(email=email, **extra_fields)
         user.set_password(password)
@@ -18,92 +18,78 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email, password=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-
-        if extra_fields.get('is_staff') is not True:
-            raise ValueError('Superuser must have is_staff=True.')
-        if extra_fields.get('is_superuser') is not True:
-            raise ValueError('Superuser must have is_superuser=True.')
-
+        extra_fields.setdefault('role', 'admin')
         return self.create_user(email, password, **extra_fields)
 
-# Custom User Model
 class User(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=50)
-    last_name = models.CharField(max_length=50)
+    ROLE_CHOICES = (
+        ('admin', 'Admin'),
+        ('teacher', 'Teacher'),
+    )
+    
+    email = models.EmailField(_('email address'), unique=True)
+    first_name = models.CharField(max_length=30, blank=True)
+    last_name = models.CharField(max_length=30, blank=True)
+    role = models.CharField(max_length=10, choices=ROLE_CHOICES)
     is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)  # Used to differentiate between teachers and admins (admins will have is_staff=True)
-
-    objects = UserManager()
-
+    is_staff = models.BooleanField(default=False)
+    date_joined = models.DateTimeField(default=timezone.now)
+    
+    objects = CustomUserManager()
+    
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = ['first_name', 'last_name']  # These fields will be required when creating a superuser
+    REQUIRED_FIELDS = ['role']
 
-    def __str__(self):
-        return self.email
+    class Meta:
+        verbose_name = _('user')
+        verbose_name_plural = _('users')
 
-
-# Admin Model (Superuser)
-class Admin(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    # Any additional fields for Admin
-    def __str__(self):
-        return f'{self.user.first_name} {self.user.last_name} (Admin)'
-
-# Teacher Model (Normal User)
-class Teacher(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    # Any additional fields for Teacher
-    def __str__(self):
-        return f'{self.user.first_name} {self.user.last_name} (Teacher)'
-
-# Study Model
-class Study(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField()
-
-    def __str__(self):
-        return self.name
-
-# Student Model
-class Student(models.Model):
-    first_name = models.CharField(max_length=50)
-    last_name = models.CharField(max_length=50)
-    profile_image = models.ImageField(upload_to='profiles/')
-    study = models.ForeignKey(Study, on_delete=models.CASCADE)
-    face_encoding = models.TextField()
-
-    def __str__(self):
+    def get_full_name(self):
         return f'{self.first_name} {self.last_name}'
 
-# Course Model
+class School(models.Model):
+    name = models.CharField(max_length=100)
+    address = models.TextField()
+    admin = models.OneToOneField(User, on_delete=models.CASCADE, related_name='school')
+    phone = models.CharField(max_length=20)
+    website = models.URLField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+class Student(models.Model):
+    first_name = models.CharField(max_length=30)
+    last_name = models.CharField(max_length=30)
+    email = models.EmailField(unique=True)
+    profile_picture = models.ImageField(upload_to='students/', blank=True)
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='students')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def get_full_name(self):
+        return f'{self.first_name} {self.last_name}'
+
 class Course(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
-    study = models.ForeignKey(Study, on_delete=models.CASCADE)
-    teacher = models.ForeignKey(Teacher, on_delete=models.CASCADE)
-    schedule = models.JSONField()
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='courses')
+    teacher = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='courses')
+    students = models.ManyToManyField(Student, related_name='courses', blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return self.name
-
-# Attendance Model
 class Attendance(models.Model):
-    student = models.ForeignKey(Student, on_delete=models.CASCADE)
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
+    ATTENDANCE_STATUS = (
+        ('present', 'Present'),
+        ('absent', 'Absent'),
+    )
+    
+    course = models.ForeignKey(Course, on_delete=models.CASCADE, related_name='attendances')
+    student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='attendances')
     date = models.DateField()
-    status = models.CharField(max_length=10, choices=[('Present', 'Present'), ('Absent', 'Absent')])
-    marked_by = models.CharField(max_length=20, choices=[('Manual', 'Manual'), ('FaceRecognition', 'FaceRecognition')])
+    status = models.CharField(max_length=10, choices=ATTENDANCE_STATUS)
+    marked_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='marked_attendances')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
-    def __str__(self):
-        return f'{self.student} - {self.course} - {self.date}'
-
-# Timetable Model
-class Timetable(models.Model):
-    course = models.ForeignKey(Course, on_delete=models.CASCADE)
-    day_of_week = models.CharField(max_length=10)
-    start_time = models.TimeField()
-    end_time = models.TimeField()
-
-    def __str__(self):
-        return f'{self.course} - {self.day_of_week}'
+    class Meta:
+        unique_together = ['course', 'student', 'date']
