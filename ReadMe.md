@@ -4,11 +4,12 @@
 - Authentication:
   - Sign up (with school details)
   - Sign in
+  - Sign out
   - Password reset
   - Profile management
 
 - Teacher Management:
-  - Create teacher accounts
+  - Create teacher accounts(with a default password)
   - View teacher list
   - Edit teacher details
   - Deactivate teacher accounts
@@ -35,6 +36,7 @@
 ```
 - Authentication:
   - Sign in
+  - Sign out
   - Password management
   - Profile updates
 
@@ -116,3 +118,4 @@ Design Guidelines:
    - Quick action floating buttons
    - Modal forms for quick edits
    - Drag-and-drop course assignment
+
