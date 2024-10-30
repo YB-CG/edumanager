@@ -1,0 +1,140 @@
+<!-- templates/courses/course_detail.html -->
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="bg-white rounded-lg shadow-md p-6 mb-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-4">{{ course.name }}</h1>
+        <p class="text-gray-600 mb-6">{{ course.description }}</p>
+        
+        <div class="flex items-center justify-between mb-8">
+            <div class="flex items-center space-x-4">
+                <button id="startCamera" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
+                    <i class="fas fa-camera mr-2"></i>
+                    Start Attendance
+                </button>
+                <button id="stopCamera" class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center hidden">
+                    <i class="fas fa-stop mr-2"></i>
+                    Stop Camera
+                </button>
+            </div>
+            
+            <div class="text-sm text-gray-500">
+                <span class="mr-4">
+                    <i class="fas fa-users mr-2"></i>
+                    {{ students|length }} students
+                </span>
+                <span>
+                    <i class="fas fa-clock mr-2"></i>
+                    Updated {{ course.updated_at|date:"M d, Y" }}
+                </span>
+            </div>
+        </div>
+        
+        <!-- Camera View -->
+        <div id="cameraContainer" class="hidden mb-8">
+            <div class="relative w-full max-w-2xl mx-auto">
+                <video id="video" class="w-full rounded-lg shadow-lg" autoplay></video>
+                <canvas id="canvas" class="hidden"></canvas>
+                <div id="faceBox" class="absolute hidden border-2 border-green-500 transition-all duration-200"></div>
+            </div>
+            <p id="recognitionStatus" class="text-center mt-4 text-gray-600"></p>
+        </div>
+        
+        <!-- Student List -->
+        <div class="bg-gray-50 rounded-lg p-6">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Enrolled Students</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for student in students %}
+                <div class="bg-white rounded-lg shadow p-4 flex items-center space-x-4">
+                    {% if student.profile_picture %}
+                    <img src="{{ student.profile_picture.url }}" alt="{{ student.first_name }}" class="w-12 h-12 rounded-full object-cover">
+                    {% else %}
+                    <div class="w-12 h-12 rounded-full bg-gray-200 flex items-center justify-center">
+                        <i class="fas fa-user text-gray-400"></i>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <h3 class="font-semibold text-gray-800">{{ student.first_name }} {{ student.last_name }}</h3>
+                        <p class="text-sm text-gray-500">{{ student.email }}</p>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-gray-600">No students enrolled.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let video = document.getElementById('video');
+let canvas = document.getElementById('canvas');
+let context = canvas.getContext('2d');
+let startButton = document.getElementById('startCamera');
+let stopButton = document.getElementById('stopCamera');
+let cameraContainer = document.getElementById('cameraContainer');
+let stream = null;
+let recognitionInterval = null;
+
+startButton.addEventListener('click', async () => {
+    try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        video.srcObject = stream;
+        cameraContainer.classList.remove('hidden');
+        startButton.classList.add('hidden');
+        stopButton.classList.remove('hidden');
+        
+        // Start face recognition
+        recognitionInterval = setInterval(captureAndProcess, 1000);
+    } catch (err) {
+        console.error('Error accessing camera:', err);
+    }
+});
+
+stopButton.addEventListener('click', () => {
+    if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+        cameraContainer.classList.add('hidden');
+        stopButton.classList.add('hidden');
+        startButton.classList.remove('hidden');
+        clearInterval(recognitionInterval);
+    }
+});
+
+async function captureAndProcess() {
+    // Set canvas dimensions to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw current video frame to canvas
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    
+    // Convert canvas to base64
+    let frame = canvas.toDataURL('image/jpeg');
+    
+    try {
+        const response = await fetch(`/process-frame/{{ course.id }}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ frame: frame })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('recognitionStatus').textContent = data.message;
+            document.getElementById('recognitionStatus').classList.add('text-green-600');
+            setTimeout(() => {
+                document.getElementById('recognitionStatus').textContent = '';
+            }, 3000);
+        }
+    } catch (error) {
+        console.error('Error processing frame:', error);
+    }
+}
+</script>
+{% endblock %}

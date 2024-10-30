@@ -1,0 +1,31 @@
+<!-- templates/courses/course_list.html -->
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-8">My Courses</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for course in courses %}
+        <a href="{% url 'course_detail' course.pk %}" class="block">
+            <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 p-6">
+                <h2 class="text-xl font-semibold text-gray-800 mb-2">{{ course.name }}</h2>
+                <p class="text-gray-600 mb-4">{{ course.description|truncatewords:20 }}</p>
+                <div class="flex items-center text-sm text-gray-500">
+                    <span class="mr-4">
+                        <i class="fas fa-users mr-2"></i>
+                        {{ course.students.count }} students
+                    </span>
+                    <span>
+                        <i class="fas fa-clock mr-2"></i>
+                        {{ course.created_at|date:"M d, Y" }}
+                    </span>
+                </div>
+            </div>
+        </a>
+        {% empty %}
+        <p class="text-gray-600">No courses found.</p>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,108 @@
+<!-- templates/students/student_form.html -->
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-2xl mx-auto">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-6">
+                {% if form.instance.pk %}
+                    Edit Student
+                {% else %}
+                    Add New Student
+                {% endif %}
+            </h1>
+
+            <form method="post" enctype="multipart/form-data" class="space-y-6">
+                {% csrf_token %}
+
+                <!-- Profile Picture Upload -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Profile Picture
+                    </label>
+                    <div class="mt-1 flex items-center space-x-4">
+                        {% if form.instance.profile_picture %}
+                            <img src="{{ form.instance.profile_picture.url }}" alt="Current profile picture" 
+                                 class="h-16 w-16 rounded-full object-cover">
+                        {% endif %}
+                        <div class="flex-1">
+                            <input type="file" name="profile_picture" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        </div>
+                    </div>
+                    {% if form.profile_picture.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.profile_picture.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- First Name -->
+                <div>
+                    <label for="{{ form.first_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        First Name
+                    </label>
+                    {{ form.first_name }}
+                    {% if form.first_name.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.first_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Last Name -->
+                <div>
+                    <label for="{{ form.last_name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Last Name
+                    </label>
+                    {{ form.last_name }}
+                    {% if form.last_name.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.last_name.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Email -->
+                <div>
+                    <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
+                        Email
+                    </label>
+                    {{ form.email }}
+                    {% if form.email.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Course Selection -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Enrolled Courses
+                    </label>
+                    <div class="max-h-60 overflow-y-auto border rounded-md p-3">
+                        {% for checkbox in form.courses %}
+                        <div class="flex items-center space-x-3 py-2">
+                            {{ checkbox.tag }}
+                            <label for="{{ checkbox.id_for_label }}" class="text-sm text-gray-700">
+                                {{ checkbox.choice_label }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% if form.courses.errors %}
+                        <p class="mt-1 text-sm text-red-600">{{ form.courses.errors.0 }}</p>
+                    {% endif %}
+                </div>
+
+                <!-- Form Actions -->
+                <div class="flex items-center justify-end space-x-4 pt-4">
+                    <a href="{% url 'student_list' %}" class="text-gray-600 hover:text-gray-800">
+                        Cancel
+                    </a>
+                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">
+                        {% if form.instance.pk %}
+                            Update Student
+                        {% else %}
+                            Add Student
+                        {% endif %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4,7 +4,7 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import LoginView, PasswordResetView, PasswordResetConfirmView
-from django.views.generic import CreateView, UpdateView, ListView, TemplateView, View
+from django.views.generic import CreateView, UpdateView, ListView, TemplateView, DetailView, View
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.http import HttpResponse
@@ -18,6 +18,13 @@ from .forms import (
     TeacherCreationForm, StudentCreationForm, CourseCreationForm,
     UserProfileForm, AttendanceFilterForm
 )
+import json
+import base64
+import tempfile
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from .services import FaceRecognitionService
+import os
 
 # Authentication Views
 class LandingPageView(TemplateView):
@@ -212,6 +219,16 @@ class CourseUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
         kwargs['school'] = self.request.user.school
         return kwargs
 
+class CourseDetailView(LoginRequiredMixin, DetailView):
+    model = Course
+    template_name = 'courses/course_detail.html'
+    context_object_name = 'course'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['students'] = self.object.students.all()
+        return context
+
 # Attendance Management Views
 class AttendanceMarkView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Attendance
@@ -338,3 +355,44 @@ class AttendanceReportView(LoginRequiredMixin, View):
             return render_to_pdf('reports/attendance_report.html', context)
         
         return HttpResponse("Invalid form data", status=400)
+    
+
+@csrf_exempt
+@login_required
+def process_frame(request, course_id):
+    if request.method == 'POST':
+        try:
+            # Get base64 image from request
+            data = json.loads(request.body)
+            base64_image = data.get('frame')
+            
+            # Convert base64 to image and save temporarily
+            image_data = base64.b64decode(base64_image.split(',')[1])
+            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
+                temp_file.write(image_data)
+                temp_path = temp_file.name
+            
+            # Process frame with face recognition service
+            face_service = FaceRecognitionService()
+            first_name, last_name = face_service.find_face_match(temp_path, course_id)
+            
+            # Remove temporary file
+            os.remove(temp_path)
+            
+            if first_name and last_name:
+                return JsonResponse({
+                    'success': True,
+                    'message': f'Attendance marked for {first_name} {last_name}'
+                })
+            return JsonResponse({
+                'success': False,
+                'message': 'No matching face found'
+            })
+            
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+    
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})

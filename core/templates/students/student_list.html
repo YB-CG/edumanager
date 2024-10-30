@@ -1,0 +1,120 @@
+<!-- templates/students/student_list.html -->
+{% extends 'base/base.html' %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Students</h1>
+        {% if user.role == 'admin' %}
+        <a href="{% url 'student_create' %}" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg flex items-center">
+            <i class="fas fa-plus mr-2"></i>
+            Add Student
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+        <form method="get" class="flex flex-wrap gap-4">
+            <div class="flex-1 min-w-[200px]">
+                <input type="text" name="q" value="{{ request.GET.q }}" 
+                       placeholder="Search students..." 
+                       class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+            </div>
+            <div class="min-w-[200px]">
+                <select name="course" class="w-full rounded-lg border-gray-300 focus:border-blue-500 focus:ring-blue-500">
+                    <option value="">All Courses</option>
+                    {% for course in courses %}
+                        <option value="{{ course.id }}" {% if request.GET.course == course.id|stringformat:"s" %}selected{% endif %}>
+                            {{ course.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg">
+                <i class="fas fa-search mr-2"></i>
+                Search
+            </button>
+        </form>
+    </div>
+
+    <!-- Students Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for student in students %}
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <div class="p-6">
+                <div class="flex items-center space-x-4">
+                    {% if student.profile_picture %}
+                    <img src="{{ student.profile_picture.url }}" 
+                         alt="{{ student.first_name }}" 
+                         class="w-16 h-16 rounded-full object-cover">
+                    {% else %}
+                    <div class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                        <i class="fas fa-user text-gray-400 text-2xl"></i>
+                    </div>
+                    {% endif %}
+                    <div class="flex-1">
+                        <h3 class="text-lg font-semibold text-gray-800">
+                            {{ student.first_name }} {{ student.last_name }}
+                        </h3>
+                        <p class="text-sm text-gray-500">{{ student.email }}</p>
+                    </div>
+                    {% if user.role == 'admin' %}
+                    <div class="flex items-center">
+                        <a href="{% url 'student_update' student.pk %}" class="text-gray-600 hover:text-blue-600">
+                            <i class="fas fa-edit text-lg"></i>
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="mt-4">
+                    <h4 class="text-sm font-medium text-gray-700 mb-2">Enrolled Courses:</h4>
+                    <div class="flex flex-wrap gap-2">
+                        {% for course in student.courses.all %}
+                        <span class="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded">
+                            {{ course.name }}
+                        </span>
+                        {% empty %}
+                        <span class="text-sm text-gray-500">No courses enrolled</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-span-full text-center py-8">
+            <div class="text-gray-500">
+                <i class="fas fa-users text-4xl mb-4"></i>
+                <p>No students found.</p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="mt-6 flex justify-center">
+        <div class="flex space-x-2">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}" 
+               class="px-3 py-1 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
+                Previous
+            </a>
+            {% endif %}
+            
+            <span class="px-3 py-1 rounded-md bg-blue-600 text-white">
+                {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}" 
+               class="px-3 py-1 rounded-md bg-gray-100 text-gray-700 hover:bg-gray-200">
+                Next
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -5,9 +5,9 @@ from .views import (
     CustomPasswordResetView, CustomPasswordResetConfirmView, sign_out, deactivate_teacher,
     UserProfileView, TeacherListView, TeacherCreateView, TeacherUpdateView,
     StudentListView, StudentCreateView, StudentUpdateView,
-    CourseListView, CourseCreateView, CourseUpdateView,
+    CourseListView, CourseCreateView, CourseUpdateView, CourseDetailView,
     AttendanceMarkView, AttendanceCalendarView, DailyAttendanceView,
-    AttendanceReportView
+    AttendanceReportView, process_frame,
 )
 from django.contrib.auth import views as auth_views
 
@@ -46,7 +46,8 @@ urlpatterns = [
     path('attendance/calendar/', AttendanceCalendarView.as_view(), name='attendance_calendar'),
     path('attendance/daily/', DailyAttendanceView.as_view(), name='daily_attendance'),
     path('courses/<int:course_id>/attendance/', AttendanceMarkView.as_view(), name='mark_attendance'),
-    
+       path('courses/<int:pk>/', CourseDetailView.as_view(), name='course_detail'),
+
     # Report URLs
     path('reports/attendance/', AttendanceReportView.as_view(), name='attendance_report'),
     path('reports/attendance/course/<int:course_id>/', 
@@ -55,4 +56,5 @@ urlpatterns = [
          AttendanceReportView.as_view(), name='student_attendance_report'),
     path('reports/attendance/student/<int:student_id>/course/<int:course_id>/', 
          AttendanceReportView.as_view(), name='student_course_attendance_report'),
+     path('process-frame/<int:course_id>/', process_frame, name='process_frame'),
 ]
