@@ -5,6 +5,15 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.contrib.auth.base_user import BaseUserManager
 
+
+class School(models.Model):
+    name = models.CharField(max_length=100)
+    address = models.TextField()
+    phone = models.CharField(max_length=20)
+    website = models.URLField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
 class CustomUserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
@@ -34,7 +43,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     date_joined = models.DateTimeField(default=timezone.now)
-    
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='users', null=True)
     objects = CustomUserManager()
     
     USERNAME_FIELD = 'email'
@@ -46,36 +55,26 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def get_full_name(self):
         return f'{self.first_name} {self.last_name}'
-
-class School(models.Model):
+    
+class Course(models.Model):
     name = models.CharField(max_length=100)
-    address = models.TextField()
-    admin = models.OneToOneField(User, on_delete=models.CASCADE, related_name='school')
-    phone = models.CharField(max_length=20)
-    website = models.URLField(blank=True)
+    description = models.TextField()
+    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='courses')
+    teacher = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='courses')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-
 class Student(models.Model):
     first_name = models.CharField(max_length=30)
     last_name = models.CharField(max_length=30)
     email = models.EmailField(unique=True)
     profile_picture = models.ImageField(upload_to='students/', blank=True)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='students')
+    courses = models.ManyToManyField(Course, related_name='students', blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     def get_full_name(self):
         return f'{self.first_name} {self.last_name}'
-
-class Course(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField()
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='courses')
-    teacher = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='courses')
-    students = models.ManyToManyField(Student, related_name='courses', blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
 
 class Attendance(models.Model):
     ATTENDANCE_STATUS = (
@@ -93,3 +92,4 @@ class Attendance(models.Model):
 
     class Meta:
         unique_together = ['course', 'student', 'date']
+        

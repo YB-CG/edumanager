@@ -114,7 +114,7 @@ Design Guidelines:
 4. Special Components:
    - Calendar view with heat map for attendance
    - Progress tracking cards
-   - Student/teacher profile cards with avatars
+   - Student profile cards with avatars
    - Quick action floating buttons
    - Modal forms for quick edits
    - Drag-and-drop course assignment

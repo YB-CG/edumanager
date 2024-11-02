@@ -4,7 +4,7 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import LoginView, PasswordResetView, PasswordResetConfirmView
-from django.views.generic import CreateView, UpdateView, ListView, TemplateView, DetailView, View
+from django.views.generic import CreateView, UpdateView, ListView, TemplateView, DetailView, DeleteView, View
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.http import HttpResponse
@@ -15,7 +15,7 @@ import io
 from .models import User, Student, Course, Attendance
 from .forms import (
     CustomUserCreationForm, CustomAuthenticationForm, SchoolCreationForm,
-    TeacherCreationForm, StudentCreationForm, CourseCreationForm,
+    TeacherCreationForm, StudentForm, CourseCreationForm,
     UserProfileForm, AttendanceFilterForm
 )
 import json
@@ -25,6 +25,9 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .services import FaceRecognitionService
 import os
+from django.db.models import Q
+from django.urls import reverse
+from django.contrib import messages
 
 # Authentication Views
 class LandingPageView(TemplateView):
@@ -70,7 +73,10 @@ class OnboardingView(LoginRequiredMixin, CreateView):
     success_url = reverse_lazy('dashboard')
     
     def form_valid(self, form):
-        form.instance.admin = self.request.user
+        school = form.save(commit=False)
+        school.save()
+        self.request.user.school = school
+        self.request.user.save()
         return super().form_valid(form)
 
 class UserProfileView(LoginRequiredMixin, UpdateView):
@@ -100,9 +106,54 @@ class TeacherListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         return self.request.user.role == 'admin'
     
     def get_queryset(self):
-        return User.objects.filter(role='teacher', school=self.request.user.school)
+        queryset = User.objects.filter(
+            role='teacher',
+            school=self.request.user.school
+        )
+        
+        # Get search and filter parameters
+        search_query = self.request.GET.get('search', '')
+        status = self.request.GET.get('status', 'all')
+        
+        # Apply search filter
+        if search_query:
+            queryset = queryset.filter(
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(email__icontains=search_query)
+            )
+        
+        # Apply status filter
+        if status == 'active':
+            queryset = queryset.filter(is_active=True)
+        elif status == 'inactive':
+            queryset = queryset.filter(is_active=False)
+            
+        return queryset
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['search_query'] = self.request.GET.get('search', '')
+        context['status'] = self.request.GET.get('status', 'all')
+        return context
 
 class TeacherCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+    model = User
+    form_class = TeacherCreationForm
+    template_name = 'users/teacher_form.html'
+    
+    def test_func(self):
+        return self.request.user.role == 'admin'
+    
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['admin_user'] = self.request.user
+        return kwargs
+    
+    def get_success_url(self):
+        return reverse('teacher_list') 
+
+class TeacherUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = User
     form_class = TeacherCreationForm
     template_name = 'users/teacher_form.html'
@@ -111,10 +162,9 @@ class TeacherCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     def test_func(self):
         return self.request.user.role == 'admin'
 
-class TeacherUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+class TeacherDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
     model = User
-    form_class = TeacherCreationForm
-    template_name = 'users/teacher_form.html'
+    template_name = 'base/confirm_delete.html'
     success_url = reverse_lazy('teacher_list')
     
     def test_func(self):
@@ -126,7 +176,7 @@ def deactivate_teacher(request, pk):
         return HttpResponse(status=403)
     
     teacher = User.objects.get(pk=pk)
-    teacher.is_active = False
+    teacher.is_active = not teacher.is_active 
     teacher.save()
     return redirect('teacher_list')
 
@@ -135,46 +185,93 @@ class StudentListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = Student
     template_name = 'students/student_list.html'
     context_object_name = 'students'
-    
+    paginate_by = 9  # Show 9 students per page
+
     def test_func(self):
         return self.request.user.role in ['admin', 'teacher']
-    
+
     def get_queryset(self):
-        if self.request.user.role == 'admin':
-            return Student.objects.filter(school=self.request.user.school)
-        return Student.objects.filter(courses__teacher=self.request.user).distinct()
+        queryset = Student.objects.filter(school=self.request.user.school)
+        
+        # Filter by teacher's courses if user is a teacher
+        if self.request.user.role == 'teacher':
+            queryset = queryset.filter(courses__teacher=self.request.user).distinct()
+
+        # Handle search
+        search_query = self.request.GET.get('q')
+        if search_query:
+            queryset = queryset.filter(
+                Q(first_name__icontains=search_query) |
+                Q(last_name__icontains=search_query) |
+                Q(email__icontains=search_query)
+            )
+
+        # Handle course filter
+        course_id = self.request.GET.get('course')
+        if course_id:
+            queryset = queryset.filter(courses__id=course_id)
+
+        return queryset.distinct()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Add courses for filtering
+        context['courses'] = Course.objects.filter(school=self.request.user.school)
+        return context
 
 class StudentCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Student
-    form_class = StudentCreationForm
+    form_class = StudentForm
     template_name = 'students/student_form.html'
     success_url = reverse_lazy('student_list')
-    
+
     def test_func(self):
         return self.request.user.role == 'admin'
-    
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['school'] = self.request.user.school
         return kwargs
-    
+
     def form_valid(self, form):
         form.instance.school = self.request.user.school
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        messages.success(self.request, 'Student created successfully.')
+        return response
 
 class StudentUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Student
-    form_class = StudentCreationForm
+    form_class = StudentForm
     template_name = 'students/student_form.html'
     success_url = reverse_lazy('student_list')
-    
+
     def test_func(self):
         return self.request.user.role == 'admin'
-    
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['school'] = self.request.user.school
         return kwargs
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        messages.success(self.request, 'Student updated successfully.')
+        return response
+
+class StudentDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Student
+    success_url = reverse_lazy('student_list')
+    
+    def test_func(self):
+        return self.request.user.role == 'admin'
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(self.request, 'Student deleted successfully.')
+        return super().delete(request, *args, **kwargs)
+
+    def get(self, request, *args, **kwargs):
+        # Override get method to prevent confirmation page
+        return self.post(request, *args, **kwargs) 
 
 # Course Management Views
 class CourseListView(LoginRequiredMixin, ListView):
@@ -228,6 +325,14 @@ class CourseDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['students'] = self.object.students.all()
         return context
+
+class CourseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Course
+    template_name = 'base/confirm_delete.html'
+    success_url = reverse_lazy('course_list')
+    
+    def test_func(self):
+        return self.request.user.role == 'admin'
 
 # Attendance Management Views
 class AttendanceMarkView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
@@ -362,31 +467,20 @@ class AttendanceReportView(LoginRequiredMixin, View):
 def process_frame(request, course_id):
     if request.method == 'POST':
         try:
-            # Get base64 image from request
             data = json.loads(request.body)
-            base64_image = data.get('frame')
+            frame_data = data.get('frame')
             
-            # Convert base64 to image and save temporarily
-            image_data = base64.b64decode(base64_image.split(',')[1])
-            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as temp_file:
-                temp_file.write(image_data)
-                temp_path = temp_file.name
-            
-            # Process frame with face recognition service
             face_service = FaceRecognitionService()
-            first_name, last_name = face_service.find_face_match(temp_path, course_id)
+            face_results, message = face_service.process_frame(
+                frame_data, 
+                course_id,
+                request.user
+            )
             
-            # Remove temporary file
-            os.remove(temp_path)
-            
-            if first_name and last_name:
-                return JsonResponse({
-                    'success': True,
-                    'message': f'Attendance marked for {first_name} {last_name}'
-                })
             return JsonResponse({
-                'success': False,
-                'message': 'No matching face found'
+                'success': True,
+                'face_boxes': face_results,
+                'message': message
             })
             
         except Exception as e:
@@ -395,4 +489,36 @@ def process_frame(request, course_id):
                 'message': str(e)
             })
     
-    return JsonResponse({'success': False, 'message': 'Invalid request method'})
+    return JsonResponse({
+        'success': False,
+        'message': 'Invalid request method'
+    })
+
+@login_required
+def update_embeddings(request):
+    """Endpoint to update all student face embeddings"""
+    if request.method == 'POST':
+        try:
+            face_service = FaceRecognitionService()
+            success = face_service.update_embeddings()
+            
+            if success:
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Face embeddings updated successfully'
+                })
+            else:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'Error updating face embeddings'
+                })
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'message': str(e)
+            })
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'Invalid request method'
+    })

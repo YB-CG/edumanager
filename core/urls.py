@@ -3,11 +3,11 @@ from django.urls import path
 from .views import (
     LandingPageView, CustomLoginView, SignUpView, OnboardingView, DashboardView,
     CustomPasswordResetView, CustomPasswordResetConfirmView, sign_out, deactivate_teacher,
-    UserProfileView, TeacherListView, TeacherCreateView, TeacherUpdateView,
-    StudentListView, StudentCreateView, StudentUpdateView,
-    CourseListView, CourseCreateView, CourseUpdateView, CourseDetailView,
+    UserProfileView, TeacherListView, TeacherCreateView, TeacherUpdateView, TeacherDeleteView,
+    StudentListView, StudentCreateView, StudentUpdateView, StudentDeleteView,
+    CourseListView, CourseCreateView, CourseUpdateView, CourseDetailView, CourseDeleteView,
     AttendanceMarkView, AttendanceCalendarView, DailyAttendanceView,
-    AttendanceReportView, process_frame,
+    AttendanceReportView, process_frame, update_embeddings,
 )
 from django.contrib.auth import views as auth_views
 
@@ -31,16 +31,19 @@ urlpatterns = [
     path('teachers/create/', TeacherCreateView.as_view(), name='teacher_create'),
     path('teachers/<int:pk>/update/', TeacherUpdateView.as_view(), name='teacher_update'),
     path('teachers/<int:pk>/deactivate/', deactivate_teacher, name='teacher_deactivate'),
+    path('teachers/<int:pk>/delete/', TeacherDeleteView.as_view(), name='teacher_delete'),
     
     # Student Management URLs
     path('students/', StudentListView.as_view(), name='student_list'),
     path('students/create/', StudentCreateView.as_view(), name='student_create'),
     path('students/<int:pk>/update/', StudentUpdateView.as_view(), name='student_update'),
+    path('students/<int:pk>/delete/', StudentDeleteView.as_view(), name='student_delete'),
     
     # Course Management URLs
     path('courses/', CourseListView.as_view(), name='course_list'),
     path('courses/create/', CourseCreateView.as_view(), name='course_create'),
     path('courses/<int:pk>/update/', CourseUpdateView.as_view(), name='course_update'),
+    path('courses/<int:pk>/delete/', CourseDeleteView.as_view(), name='course_delete'),
     
     # Attendance Management URLs
     path('attendance/calendar/', AttendanceCalendarView.as_view(), name='attendance_calendar'),
@@ -57,4 +60,5 @@ urlpatterns = [
     path('reports/attendance/student/<int:student_id>/course/<int:course_id>/', 
          AttendanceReportView.as_view(), name='student_course_attendance_report'),
      path('process-frame/<int:course_id>/', process_frame, name='process_frame'),
+     path('update-embeddings/', update_embeddings, name='update_embeddings'),
 ]
