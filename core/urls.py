@@ -47,8 +47,6 @@ urlpatterns = [
     
     # Attendance Management URLs
     path('attendance/calendar/', AttendanceCalendarView.as_view(), name='attendance_calendar'),
-#     path('attendance/daily/', DailyAttendanceView.as_view(), name='daily_attendance'),
-#     path('courses/<int:course_id>/attendance/', AttendanceMarkView.as_view(), name='mark_attendance'),
     path('attendance/update/<int:attendance_id>/', UpdateAttendanceView.as_view(), name='update_attendance'),
 
     # Report URLs
