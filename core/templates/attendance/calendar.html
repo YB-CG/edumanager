@@ -1,0 +1,539 @@
+{% extends 'base/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <!-- Header Section -->
+    <div class="mb-8 flex justify-between items-center">
+        <div>
+            <h1 class="text-3xl font-bold text-gray-800">Attendance Calendar</h1>
+            <p class="text-gray-600">Track attendance patterns across courses</p>
+        </div>
+        <button onclick="downloadMonthlyReport()" 
+                class="bg-blue-600 hover:bg-blue-700 inline-flex items-center px-4 py-2 bg-[#1a73e8] text-white rounded-lg 
+                       transition-all duration-200 transform hover:scale-105 hover:shadow-lg gap-2">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                      d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+            Download Monthly Report
+        </button>
+    </div>
+
+    <!-- Filters Section -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+        <div class="flex flex-wrap gap-4 items-center">
+            <!-- Course Filter -->
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Course</label>
+                <div class="relative">
+                    <select id="courseFilter" 
+                            class="w-full pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg appearance-none
+                                   focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent">
+                        <option value="">All Courses</option>
+                        {% for course in courses %}
+                            <option value="{{ course.id }}">{{ course.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Month Selector -->
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Month</label>
+                <input type="month" id="monthSelector" 
+                       class="w-full pl-4 pr-4 py-2.5 border border-gray-200 rounded-lg
+                              focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent"
+                       value="{{ current_date|date:'Y-m' }}">
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Calendar Grid -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <!-- Calendar Header -->
+        <div class="grid grid-cols-7 gap-4 mb-4">
+            {% for day in "MTWTFSS"|make_list %}
+                <div class="text-center font-semibold text-gray-600">{{ day }}</div>
+            {% endfor %}
+        </div>
+
+        <!-- Calendar Body -->
+        <div id="calendarGrid" class="grid grid-cols-7 gap-4">
+            <!-- Calendar cells will be populated by JavaScript -->
+        </div>
+
+        <!-- Legend -->
+          <!-- Legend -->
+          <div class="mt-8 border-t pt-6">
+            <p class="text-sm font-medium text-gray-700 mb-3">Attendance Legend</p>
+            <div class="flex flex-wrap items-center gap-6">
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 rounded bg-gray-200"></div>
+                    <span class="text-sm text-gray-600">No Attendance</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 rounded bg-green-500"></div>
+                    <span class="text-sm text-gray-600">90-100%</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 rounded bg-green-300"></div>
+                    <span class="text-sm text-gray-600">75-89%</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 rounded bg-yellow-300"></div>
+                    <span class="text-sm text-gray-600">50-74%</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 rounded bg-red-300"></div>
+                    <span class="text-sm text-gray-600">25-49%</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="w-4 h-4 rounded bg-red-500"></div>
+                    <span class="text-sm text-gray-600">0-24%</span>
+                </div>
+        </div>
+    </div>
+</div>
+
+<!-- Enhanced Attendance Details Modal -->
+<div id="attendanceModal" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm overflow-y-auto h-full w-full">
+    <div class="relative top-20 mx-auto p-0 border w-full max-w-2xl shadow-lg rounded-xl bg-white">
+        <!-- Modal Header -->
+        <div class="p-6 border-b flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+                <h3 class="text-xl font-semibold text-gray-900" id="modalTitle">Attendance Details</h3>
+            </div>
+            <button class="text-gray-500 hover:text-gray-700 transition-colors" onclick="closeModal()">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+
+        <!-- Modal Content -->
+        <div class="p-6" id="modalContent"></div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let attendanceData = {{ attendance_data|safe }};
+
+function getColorForPercentage(percentage) {
+    // If no students records exist for this day (different from 0% attendance)
+    if (percentage === null || percentage === undefined) return 'bg-gray-200';
+    
+    // Actual percentage calculations for days with records
+    if (percentage >= 90) return 'bg-green-500';
+    if (percentage >= 75) return 'bg-green-300';
+    if (percentage >= 50) return 'bg-yellow-300';
+    if (percentage >= 25) return 'bg-red-300';
+    return 'bg-red-500'; // Only for actual 0-24% attendance
+}
+
+function updateCalendar(month, year) {
+    const firstDay = new Date(year, month - 1, 1);
+    const lastDay = new Date(year, month, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDay = firstDay.getDay();
+    
+    const calendarGrid = document.getElementById('calendarGrid');
+    calendarGrid.innerHTML = '';
+    
+    // Add empty cells for days before the first of the month
+    for (let i = 0; i < startingDay; i++) {
+        calendarGrid.appendChild(createEmptyCell());
+    }
+    
+    // Create cells for each day of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+        const cell = createDateCell(day, month, year);
+        calendarGrid.appendChild(cell);
+    }
+    
+}
+
+function createEmptyCell() {
+    const cell = document.createElement('div');
+    cell.className = 'aspect-square bg-gray-50 rounded-lg';
+    return cell;
+}
+
+function createDateCell(day, month, year) {
+    const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const dayData = attendanceData[date];
+    
+    const cell = document.createElement('div');
+    cell.className = 'aspect-square rounded-lg p-2 cursor-pointer hover:shadow-md transition-shadow';
+    
+    // If we have data for this day but no students, or if we don't have data
+    if (!dayData || !dayData.students || dayData.students.length === 0) {
+        cell.classList.add('bg-gray-200');
+        cell.innerHTML = `
+            <div class="h-full flex flex-col">
+                <span class="text-sm font-medium">${day}</span>
+            </div>
+        `;
+        return cell;
+    }
+    
+    // Calculate percentage only if we have actual attendance records
+    const percentage = dayData.total > 0 ? (dayData.present / dayData.total) * 100 : 0;
+    cell.classList.add(getColorForPercentage(percentage));
+    
+    cell.innerHTML = `
+        <div class="h-full flex flex-col">
+            <span class="text-sm font-medium">${day}</span>
+            <span class="text-xs mt-auto">
+                ${dayData.present}/${dayData.total}
+            </span>
+        </div>
+    `;
+    
+    cell.onclick = () => showAttendanceDetails(date);
+    
+    return cell;
+}
+
+function showAttendanceDetails(date) {
+    const modal = document.getElementById('attendanceModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalContent = document.getElementById('modalContent');
+    
+    modalTitle.textContent = `Attendance for ${date}`;
+    
+    // Format and display attendance details
+    const dayData = attendanceData[date];
+    if (dayData) {
+        modalContent.innerHTML = `
+            <div class="space-y-4">
+                <div class="flex justify-between items-center">
+                    <div class="text-sm text-gray-600">Total Students</div>
+                    <div class="font-semibold" data-count="total">${dayData.total}</div>
+                </div>
+                <div class="flex justify-between items-center">
+                    <div class="text-sm text-gray-600">Present</div>
+                    <div class="font-semibold text-green-600" data-count="present">${dayData.present}</div>
+                </div>
+                <div class="flex justify-between items-center">
+                    <div class="text-sm text-gray-600">Absent</div>
+                    <div class="font-semibold text-red-600" data-count="absent">${dayData.total - dayData.present}</div>
+                </div>
+                <div class="mt-6">
+                    <h4 class="font-medium mb-2">Student List</h4>
+                    <div class="space-y-2">
+                        ${dayData.students.map(student => {
+                            // Ensure attendance_id exists and is valid
+                            if (!student.attendance_id) {
+                                console.error('Missing attendance_id for student:', student);
+                                return '';
+                            }
+                            return `
+                                <div class="flex justify-between items-center p-2 ${
+                                    student.status === 'present' ? 'bg-green-50' : 'bg-red-50'
+                                } rounded" data-attendance-id="${student.attendance_id}">
+                                    <span>${student.name}</span>
+                                    <div class="flex items-center gap-2">
+                                        <span class="status-indicator ${
+                                            student.status === 'present' ? 'text-green-600' : 'text-red-600'
+                                        }">${student.status}</span>
+                                        <button 
+                                            type="button"
+                                            class="toggle-button px-2 py-1 text-xs rounded ${
+                                                student.status === 'present' 
+                                                    ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                                                    : 'bg-green-100 text-green-600 hover:bg-green-200'
+                                            } transition-colors"
+                                            onclick="handleAttendanceToggle(${student.attendance_id}, '${student.status}')">
+                                            Mark ${student.status === 'present' ? 'Absent' : 'Present'}
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    } else {
+        modalContent.innerHTML = '<p class="text-gray-600">No attendance data available for this date.</p>';
+    }
+    
+    modal.classList.remove('hidden');
+}
+
+// Wrapper function to handle the attendance toggle
+function handleAttendanceToggle(attendanceId, currentStatus) {
+    if (!attendanceId) {
+        console.error('Invalid attendance ID');
+        alert('Unable to update attendance: Invalid attendance ID');
+        return;
+    }
+    toggleAttendance(attendanceId, currentStatus);
+}
+
+async function downloadMonthlyReport() {
+    const courseId = document.getElementById('courseFilter').value;
+    const monthValue = document.getElementById('monthSelector').value;
+    
+    if (!courseId) {
+        alert('Please select a course to generate the report.');
+        return;
+    }
+
+    try {
+        // Show loading state
+        const button = document.querySelector('button[onclick="downloadMonthlyReport()"]');
+        const originalContent = button.innerHTML;
+        button.innerHTML = `
+            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            Generating Report...
+        `;
+        button.disabled = true;
+
+        const response = await fetch(`/reports/attendance/course/${courseId}/?period=monthly&date=${monthValue}`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/pdf'
+            }
+        });
+
+        if (!response.ok) throw new Error('Failed to generate report');
+
+        // Create blob and download
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `attendance_report_${monthValue}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+
+        // Reset button state
+        button.innerHTML = originalContent;
+        button.disabled = false;
+
+    } catch (error) {
+        console.error('Error generating report:', error);
+        alert('Failed to generate report. Please try again.');
+        
+        // Reset button state
+        button.innerHTML = originalContent;
+        button.disabled = false;
+    }
+}
+
+async function toggleAttendance(attendanceId, currentStatus) {
+    try {
+        if (!attendanceId) {
+            throw new Error('Invalid attendance ID');
+        }
+
+        const newStatus = currentStatus === 'present' ? 'absent' : 'present';
+        
+        const response = await fetch(`/attendance/update/${attendanceId}/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                status: newStatus
+            })
+        });
+
+        if (!response.ok) {
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Server error');
+            } else {
+                throw new Error(`Server error: ${response.status}`);
+            }
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Update the UI to reflect the change
+            const attendanceRow = document.querySelector(`[data-attendance-id="${attendanceId}"]`);
+            if (attendanceRow) {
+                const statusIndicator = attendanceRow.querySelector('.status-indicator');
+                const toggleButton = attendanceRow.querySelector('.toggle-button');
+                
+                // Update status indicator
+                statusIndicator.className = `status-indicator ${data.status === 'present' ? 'text-green-600' : 'text-red-600'}`;
+                statusIndicator.textContent = data.status;
+                
+                // Update row background
+                attendanceRow.className = `flex justify-between items-center p-2 rounded ${
+                    data.status === 'present' ? 'bg-green-50' : 'bg-red-50'
+                }`;
+                
+                // Update toggle button and its onclick handler
+                toggleButton.className = `toggle-button px-2 py-1 text-xs rounded transition-colors ${
+                    data.status === 'present' 
+                        ? 'bg-red-100 text-red-600 hover:bg-red-200' 
+                        : 'bg-green-100 text-green-600 hover:bg-green-200'
+                }`;
+                toggleButton.textContent = `Mark ${data.status === 'present' ? 'Absent' : 'Present'}`;
+                
+                // Update the onclick attribute with new status
+                toggleButton.onclick = () => handleAttendanceToggle(attendanceId, data.status);
+                
+                // Update the attendance counts
+                updateAttendanceCounts();
+                
+                // Update the attendanceData object
+                const date = modalTitle.textContent.replace('Attendance for ', '');
+                if (attendanceData[date]) {
+                    // Find and update the student's status in the data
+                    const student = attendanceData[date].students.find(s => s.attendance_id === attendanceId);
+                    if (student) {
+                        student.status = data.status;
+                        
+                        // Update present count
+                        attendanceData[date].present = attendanceData[date].students.filter(s => s.status === 'present').length;
+                        
+                        // Update the calendar cell
+                        updateCalendarCell(date);
+                    }
+                }
+            }
+        } else {
+            throw new Error(data.error || 'Failed to update attendance');
+        }
+    } catch (error) {
+        console.error('Error updating attendance:', error);
+        alert(`Failed to update attendance: ${error.message}`);
+    }
+}
+
+// function to update a specific calendar cell
+function updateCalendarCell(date) {
+    const [year, month, day] = date.split('-').map(Number);
+    const cells = document.querySelectorAll('#calendarGrid > div');
+    const dayData = attendanceData[date];
+    
+    // Find the correct cell (accounting for empty cells at the start)
+    const firstDay = new Date(year, month - 1, 1).getDay();
+    const cellIndex = firstDay + day - 1;
+    const cell = cells[cellIndex];
+    
+    if (cell) {
+        // Remove all background classes
+        cell.classList.remove('bg-gray-200', 'bg-green-500', 'bg-green-300', 'bg-yellow-300', 'bg-red-300', 'bg-red-500');
+        
+        // If no data or no students, show as gray
+        if (!dayData || !dayData.students || dayData.students.length === 0) {
+            cell.classList.add('bg-gray-200');
+            cell.innerHTML = `
+                <div class="h-full flex flex-col">
+                    <span class="text-sm font-medium">${day}</span>
+                </div>
+            `;
+            return;
+        }
+        
+        // Calculate new percentage and add appropriate class
+        const percentage = dayData.total > 0 ? (dayData.present / dayData.total) * 100 : 0;
+        cell.classList.add(getColorForPercentage(percentage));
+        
+        // Update the content
+        cell.innerHTML = `
+            <div class="h-full flex flex-col">
+                <span class="text-sm font-medium">${day}</span>
+                ${dayData.total > 0 ? `
+                    <span class="text-xs mt-auto">
+                        ${dayData.present}/${dayData.total}
+                    </span>
+                ` : ''}
+            </div>
+        `;
+        
+        // Make sure the click handler is still attached if we have data
+        if (dayData && dayData.total > 0) {
+            cell.onclick = () => showAttendanceDetails(date);
+        }
+    }
+}
+// Helper function to get CSRF token from cookies
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Helper function to update attendance counts in the modal
+function updateAttendanceCounts() {
+    const modal = document.getElementById('modalContent');
+    if (!modal) return;
+
+    const presentCount = modal.querySelectorAll('.status-indicator.text-green-600').length;
+    const totalCount = modal.querySelectorAll('.status-indicator').length;
+    
+    const presentElement = modal.querySelector('[data-count="present"]');
+    const absentElement = modal.querySelector('[data-count="absent"]');
+    
+    if (presentElement) presentElement.textContent = presentCount;
+    if (absentElement) absentElement.textContent = totalCount - presentCount;
+}
+
+function closeModal() {
+    document.getElementById('attendanceModal').classList.add('hidden');
+}
+
+// Event Listeners
+document.getElementById('monthSelector').addEventListener('change', (e) => {
+    const [year, month] = e.target.value.split('-');
+    updateCalendar(parseInt(month), parseInt(year));
+});
+
+document.getElementById('courseFilter').addEventListener('change', () => {
+    const [year, month] = document.getElementById('monthSelector').value.split('-');
+    updateCalendar(parseInt(month), parseInt(year));
+});
+
+// Initialize calendar
+const currentDate = new Date();
+updateCalendar(currentDate.getMonth() + 1, currentDate.getFullYear());
+
+// Close modal when clicking outside
+window.onclick = (event) => {
+    const modal = document.getElementById('attendanceModal');
+    if (event.target === modal) {
+        closeModal();
+    }
+}
+
+</script>
+{% endblock %}

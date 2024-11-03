@@ -469,19 +469,89 @@ class CourseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return self.request.user.role == 'admin'
 
 # Attendance Management Views
-class AttendanceMarkView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
-    model = Attendance
-    fields = ['student', 'status']
-    template_name = 'attendance/mark_attendance.html'
+# class AttendanceMarkView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
+#     model = Attendance
+#     fields = ['student', 'status']
+#     template_name = 'attendance/mark_attendance.html'
     
-    def test_func(self):
-        return self.request.user.role == 'teacher'
+#     def test_func(self):
+#         return self.request.user.role == 'teacher'
     
-    def form_valid(self, form):
-        form.instance.course_id = self.kwargs['course_id']
-        form.instance.date = timezone.now().date()
-        form.instance.marked_by = self.request.user
-        return super().form_valid(form)
+#     def form_valid(self, form):
+#         form.instance.course_id = self.kwargs['course_id']
+#         form.instance.date = timezone.now().date()
+#         form.instance.marked_by = self.request.user
+#         return super().form_valid(form)
+
+# views.py
+# class AttendanceCalendarView(LoginRequiredMixin, TemplateView):
+#     template_name = 'attendance/calendar.html'
+    
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         current_date = timezone.now().date()
+        
+#         # Get courses based on user role
+#         if self.request.user.role == 'admin':
+#             courses = Course.objects.filter(school=self.request.user.school)
+#         else:
+#             courses = Course.objects.filter(teacher=self.request.user)
+            
+#         # Get all students for the courses
+#         students = Student.objects.filter(courses__in=courses).distinct()
+        
+#         # Get attendance data for the current month
+#         attendance_data = Attendance.objects.filter(
+#             course__in=courses,
+#             date__month=current_date.month,
+#             date__year=current_date.year
+#         ).select_related('course', 'student')
+        
+#         # Format attendance data for the calendar
+#         calendar_data = {}
+        
+#         # Initialize all days of the month with null attendance
+#         first_day = current_date.replace(day=1)
+#         last_day = (first_day + timezone.timedelta(days=32)).replace(day=1) - timezone.timedelta(days=1)
+        
+#         for day in range(1, last_day.day + 1):
+#             date_str = current_date.replace(day=day).strftime('%Y-%m-%d')
+#             calendar_data[date_str] = {
+#                 'present': 0,
+#                 'total': 0,
+#                 'students': [],
+#                 'has_attendance': False  # New flag to track if attendance was taken
+#             }
+        
+#         # Populate actual attendance data
+#         for attendance in attendance_data:
+#             date_str = attendance.date.strftime('%Y-%m-%d')
+#             if date_str not in calendar_data:
+#                 calendar_data[date_str] = {
+#                     'present': 0,
+#                     'total': 0,
+#                     'students': [],
+#                     'has_attendance': True
+#                 }
+            
+#             calendar_data[date_str]['total'] += 1
+#             calendar_data[date_str]['has_attendance'] = True
+#             if attendance.status == 'present':
+#                 calendar_data[date_str]['present'] += 1
+            
+#             calendar_data[date_str]['students'].append({
+#                 'id': attendance.student.id,
+#                 'name': attendance.student.get_full_name(),
+#                 'status': attendance.status
+#             })
+        
+#         context.update({
+#             'courses': courses,
+#             'students': students,
+#             'attendance_data': calendar_data,
+#             'current_date': current_date
+#         })
+#         return context
 
 class AttendanceCalendarView(LoginRequiredMixin, TemplateView):
     template_name = 'attendance/calendar.html'
@@ -490,47 +560,112 @@ class AttendanceCalendarView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         current_date = timezone.now().date()
         
+        # Get courses based on user role
         if self.request.user.role == 'admin':
             courses = Course.objects.filter(school=self.request.user.school)
         else:
             courses = Course.objects.filter(teacher=self.request.user)
         
+        # Get attendance data for the current month
         attendance_data = Attendance.objects.filter(
             course__in=courses,
             date__month=current_date.month,
             date__year=current_date.year
         ).select_related('course', 'student')
         
+        # Format attendance data for the calendar
+        calendar_data = {}
+        for attendance in attendance_data:
+            date_str = attendance.date.strftime('%Y-%m-%d')
+            if date_str not in calendar_data:
+                calendar_data[date_str] = {
+                    'present': 0,
+                    'total': 0,
+                    'course_id': str(attendance.course.id),
+                    'students': []
+                }
+            
+            calendar_data[date_str]['total'] += 1
+            if attendance.status == 'present':
+                calendar_data[date_str]['present'] += 1
+            
+            calendar_data[date_str]['students'].append({
+                'name': attendance.student.get_full_name(),
+                'status': attendance.status,
+                'attendance_id': attendance.id
+            })
+        
         context.update({
             'courses': courses,
-            'attendance_data': attendance_data,
+            'attendance_data': calendar_data,
             'current_date': current_date
         })
         return context
-
-class DailyAttendanceView(LoginRequiredMixin, TemplateView):
-    template_name = 'attendance/daily_report.html'
     
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        date = self.request.GET.get('date', timezone.now().date())
+
+class UpdateAttendanceView(LoginRequiredMixin, UserPassesTestMixin, View):
+    def test_func(self):
+        return self.request.user.role in ['teacher', 'admin']
+    
+    def post(self, request, attendance_id, *args, **kwargs):
+        try:
+            data = json.loads(request.body)
+            new_status = data.get('status')
+            
+            if new_status not in ['present', 'absent']:
+                return JsonResponse({
+                    'success': False,
+                    'error': 'Invalid status value'
+                }, status=400)
+            
+            attendance = Attendance.objects.get(id=attendance_id)
+            attendance.status = new_status
+            attendance.save()
+            
+            return JsonResponse({
+                'success': True,
+                'status': attendance.status
+            })
+            
+        except Attendance.DoesNotExist:
+            return JsonResponse({
+                'success': False,
+                'error': 'Attendance record not found'
+            }, status=404)
+        except json.JSONDecodeError:
+            return JsonResponse({
+                'success': False,
+                'error': 'Invalid JSON data'
+            }, status=400)
+        except Exception as e:
+            return JsonResponse({
+                'success': False,
+                'error': str(e)
+            }, status=400)
+                
+# class DailyAttendanceView(LoginRequiredMixin, TemplateView):
+#     template_name = 'attendance/daily_report.html'
+    
+#     def get_context_data(self, **kwargs):
+#         context = super().get_context_data(**kwargs)
+#         date = self.request.GET.get('date', timezone.now().date())
         
-        if self.request.user.role == 'admin':
-            courses = Course.objects.filter(school=self.request.user.school)
-        else:
-            courses = Course.objects.filter(teacher=self.request.user)
+#         if self.request.user.role == 'admin':
+#             courses = Course.objects.filter(school=self.request.user.school)
+#         else:
+#             courses = Course.objects.filter(teacher=self.request.user)
         
-        attendance_data = Attendance.objects.filter(
-            course__in=courses,
-            date=date
-        ).select_related('course', 'student')
+#         attendance_data = Attendance.objects.filter(
+#             course__in=courses,
+#             date=date
+#         ).select_related('course', 'student')
         
-        context.update({
-            'attendance_data': attendance_data,
-            'date': date,
-            'courses': courses
-        })
-        return context
+#         context.update({
+#             'attendance_data': attendance_data,
+#             'date': date,
+#             'courses': courses
+#         })
+#         return context
 
 # Report Generation Views
 def get_date_range(period, start_date=None, end_date=None):
@@ -579,9 +714,6 @@ class AttendanceReportView(LoginRequiredMixin, View):
             
             if 'course_id' in kwargs:
                 queryset = queryset.filter(course_id=kwargs['course_id'])
-            
-            if 'student_id' in kwargs:
-                queryset = queryset.filter(student_id=kwargs['student_id'])
             
             context = {
                 'attendance_records': queryset,

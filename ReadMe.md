@@ -118,4 +118,3 @@ Design Guidelines:
    - Quick action floating buttons
    - Modal forms for quick edits
    - Drag-and-drop course assignment
-

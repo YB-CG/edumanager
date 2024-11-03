@@ -6,7 +6,7 @@ from .views import (
     UserProfileView, TeacherListView, TeacherCreateView, TeacherUpdateView, TeacherDeleteView,
     StudentListView, StudentCreateView, StudentUpdateView, StudentDeleteView,
     CourseListView, CourseCreateView, CourseUpdateView, CourseDetailView, CourseDeleteView,
-    AttendanceMarkView, AttendanceCalendarView, DailyAttendanceView,
+    AttendanceCalendarView, UpdateAttendanceView,
     AttendanceReportView, process_frame, update_embeddings,
 )
 from django.contrib.auth import views as auth_views
@@ -43,21 +43,17 @@ urlpatterns = [
     path('courses/create/', CourseCreateView.as_view(), name='course_create'),
     path('courses/<int:pk>/update/', CourseUpdateView.as_view(), name='course_update'),
     path('courses/<int:pk>/delete/', CourseDeleteView.as_view(), name='course_delete'),
+    path('courses/<int:pk>/', CourseDetailView.as_view(), name='course_detail'),
     
     # Attendance Management URLs
     path('attendance/calendar/', AttendanceCalendarView.as_view(), name='attendance_calendar'),
-    path('attendance/daily/', DailyAttendanceView.as_view(), name='daily_attendance'),
-    path('courses/<int:course_id>/attendance/', AttendanceMarkView.as_view(), name='mark_attendance'),
-    path('courses/<int:pk>/', CourseDetailView.as_view(), name='course_detail'),
+#     path('attendance/daily/', DailyAttendanceView.as_view(), name='daily_attendance'),
+#     path('courses/<int:course_id>/attendance/', AttendanceMarkView.as_view(), name='mark_attendance'),
+    path('attendance/update/<int:attendance_id>/', UpdateAttendanceView.as_view(), name='update_attendance'),
 
     # Report URLs
-     path('reports/attendance/', AttendanceReportView.as_view(), name='attendance_report'),
      path('reports/attendance/course/<int:course_id>/', 
          AttendanceReportView.as_view(), name='course_attendance_report'),
-     path('reports/attendance/student/<int:student_id>/', 
-         AttendanceReportView.as_view(), name='student_attendance_report'),
-     path('reports/attendance/student/<int:student_id>/course/<int:course_id>/', 
-         AttendanceReportView.as_view(), name='student_course_attendance_report'),
      path('process-frame/<int:course_id>/', process_frame, name='process_frame'),
      path('update-embeddings/', update_embeddings, name='update_embeddings'),
 ]
