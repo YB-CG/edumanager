@@ -82,8 +82,16 @@
                         {% for activity in recent_activities %}
                         <div class="flex items-start">
                             <div class="flex-shrink-0">
-                                <span class="inline-flex items-center justify-center h-8 w-8 rounded-full bg-blue-100">
-                                    <span class="text-sm font-medium leading-none text-blue-600">{{ activity.user.get_initials }}</span>
+                                <span class="inline-flex items-center justify-center h-8 w-8 rounded-full 
+                                    {% if activity.activity_type == 'teacher' %}bg-green-100
+                                    {% elif activity.activity_type == 'student' %}bg-blue-100
+                                    {% else %}bg-purple-100{% endif %}">
+                                    <span class="text-sm font-medium leading-none 
+                                        {% if activity.activity_type == 'teacher' %}text-green-600
+                                        {% elif activity.activity_type == 'student' %}text-blue-600
+                                        {% else %}text-purple-600{% endif %}">
+                                        {{ activity.get_initials|default:"+" }}
+                                    </span>
                                 </span>
                             </div>
                             <div class="ml-4">

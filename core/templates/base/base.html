@@ -1,4 +1,3 @@
-<!-- templates/base/authentication/base_auth.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +8,7 @@
     <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-
+    
     <style>
         :root {
             --primary-color: #1a73e8;
@@ -17,208 +16,198 @@
             --accent-color: #ff6d00;
             --background-color: #f8f9fa;
             --text-color: #202124;
+            --sidebar-width: 16rem;
+            --header-height: 4rem;
         }
 
-        body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out;
         }
 
-        .auth-container {
-            min-height: 100vh;
+        .nav-item-active {
+            background-color: rgba(26, 115, 232, 0.1);
+            color: var(--primary-color);
+            border-left: 3px solid var(--primary-color);
+        }
+
+        .nav-item {
+            transition: all 0.2s ease;
+        }
+
+        .nav-item:hover {
+            background-color: rgba(26, 115, 232, 0.05);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.active {
+                transform: translateX(0);
+            }
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -0.5rem;
+            right: -0.5rem;
+            min-width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 9999px;
+            background-color: var(--accent-color);
+            color: white;
+            font-size: 0.75rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 2rem;
-        }
-
-        .auth-card {
-            background: white;
-            border-radius: 1rem;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            width: 100%;
-            max-width: 1200px;
-        }
-
-        .auth-form {
-            max-width: 400px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
-
-        .form-control {
-            border-radius: 0.5rem;
-            padding: 0.75rem 1rem;
-            border: 1px solid #e0e0e0;
-            transition: all 0.3s ease;
-        }
-
-        .form-control:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.25);
-        }
-
-        .btn-primary {
-            background-color: var(--primary-color);
-            border: none;
-            border-radius: 0.5rem;
-            padding: 0.75rem 1.5rem;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background-color: #1557b0;
-            transform: translateY(-1px);
-        }
-
-        .feature-card {
-            border-radius: 1rem;
-            padding: 2rem;
-            height: 100%;
-            transition: all 0.3s ease;
-        }
-
-        .feature-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .stats-counter {
-            font-size: 2.5rem;
-            font-weight: bold;
-            color: var(--primary-color);
-        }
-
-        .floating-badge {
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            background: var(--accent-color);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 2rem;
-            font-size: 0.8rem;
-            font-weight: bold;
         }
     </style>
-    {% block extra_css %}{% endblock %}
 </head>
-<body>
-    <body>
-        <div class="flex h-screen bg-gray-100">
+<body class="bg-gray-100">
+    <div class="min-h-screen flex">
+        <!-- Mobile Menu Button -->
+        <div class="md:hidden fixed top-4 left-4 z-50">
+            <button id="mobile-menu-button" class="p-2 rounded-md bg-white shadow-lg">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+                </svg>
+            </button>
+        </div>
 
         {% if user.is_authenticated %}
-            {% if user.role == 'admin' %}
-            <!-- Admin Sidebar -->
-            <aside class="hidden md:flex md:flex-shrink-0">
-                <div class="flex flex-col w-64 bg-white shadow-lg">
-                    <div class="flex items-center justify-center h-16 px-4 bg-primary-700">
-                        <a class="navbar-brand" href="#">
-                            <i class="fas fa-graduation-cap text-primary"></i>
-                            EduManager
-                        </a>
-                    </div>
-                    <nav class="flex-1 px-2 py-4 space-y-1">
-                        <a href="{% url 'dashboard' %}" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                            </svg>
-                            Overview
-                        </a>
-                        <a href="{% url 'teacher_list' %}" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
-                            </svg>
-                            Teachers
-                        </a>
-                        <a href="{% url 'student_list' %}" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                            </svg>
-                            Students
-                        </a>
-                        <a href="{% url 'course_list' %}" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                            </svg>
-                            Courses
-                        </a>
-                        <a href="{% url 'attendance_calendar' %}" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                            Attendance
-                        </a>
-                    </nav>
-                    <div class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg mt-auto">
-                        <a href="{% url 'logout' %}" class="flex items-center">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l-4-4m5-5v-1a3 3 0 00-5.356-1.857M17 16H7m10-5v-1a3 3 0 00-5.356-1.857M17 16H7m10-5v-1a3 3 0 00-5.356-1.857"></path>
-                            </svg>
-                            Logout
-                        </a>
-                    </div>
+        <!-- Sidebar -->
+        <aside class="sidebar sidebar-transition fixed md:relative w-64 h-screen bg-white shadow-lg z-40">
+            <div class="flex flex-col h-full">
+                <!-- Logo Section -->
+                <div class="flex items-center justify-center h-16 px-4 bg-primary-700 border-b">
+                    <a href="{% url 'dashboard' %}" class="flex items-center space-x-2">
+                        <i class="fas fa-graduation-cap text-2xl text-primary"></i>
+                        <span class="text-lg font-semibold">EduManager</span>
+                    </a>
                 </div>
-            </aside>
-            {% elif user.role == 'teacher' %}
-            <!-- Teacher Sidebar -->
-            <aside class="hidden md:flex md:flex-shrink-0">
-                <div class="flex flex-col w-64 bg-white shadow-lg">
-                    <div class="flex items-center justify-center h-16 px-4 bg-primary-700">
-                        <a class="navbar-brand" href="#">
-                            <i class="fas fa-graduation-cap text-primary"></i>
-                            EduManager
-                        </a>
+
+                <!-- User Profile Section -->
+                <!-- <div class="p-4 border-b">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                            <i class="fas fa-user text-gray-600"></i>
+                        </div>
+                        <div>
+                            <p class="font-medium">{{ user.get_full_name }}</p>
+                            <p class="text-sm text-gray-500">{{ user.role|title }}</p>
+                        </div>
                     </div>
-                    <nav class="flex-1 px-2 py-4 space-y-1">
-                        <a href="{% url 'dashboard' %}" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-                            </svg>
-                            Overview
-                        </a>
-                        <a href="{% url 'student_list' %}" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
-                            </svg>
-                            My Students
-                        </a>
-                        <a href="{% url 'course_list' %}" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
-                            </svg>
-                            My Courses
-                        </a>
-                        <a href="{% url 'attendance_calendar' %}" class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                            </svg>
-                            Attendance
-                        </a>
-                    </nav>
-                    <div class="flex items-center px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg mt-auto">
-                        <a href="{% url 'logout' %}" class="flex items-center">
-                            <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l-4-4m5-5v-1a3 3 0 00-5.356-1.857M17 16H7m10-5v-1a3 3 0 00-5.356-1.857M17 16H7m10-5v-1a3 3 0 00-5.356-1.857"></path>
-                            </svg>
-                            Logout
-                        </a>
-                    </div>
+                </div> -->
+
+                <!-- Navigation -->
+                <nav class="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
+                    {% if user.role == 'admin' %}
+                    <a href="{% url 'dashboard' %}" class="nav-item flex items-center px-4 py-2 rounded-lg {% if request.resolver_match.url_name == 'dashboard' %}nav-item-active{% endif %}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <a href="{% url 'teacher_list' %}" class="nav-item flex items-center px-4 py-2 rounded-lg {% if request.resolver_match.url_name == 'teacher_list' %}nav-item-active{% endif %}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                        <span>Teachers</span>
+                    </a>
+
+                    <a href="{% url 'student_list' %}" class="nav-item flex items-center px-4 py-2 rounded-lg {% if request.resolver_match.url_name == 'student_list' %}nav-item-active{% endif %}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        <span>Students</span>
+                    </a>
+
+                    <a href="{% url 'course_list' %}" class="nav-item flex items-center px-4 py-2 rounded-lg {% if request.resolver_match.url_name == 'course_list' %}nav-item-active{% endif %}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                        </svg>
+                        <span>Courses</span>
+                    </a>
+
+                    <a href="{% url 'attendance_calendar' %}" class="nav-item flex items-center px-4 py-2 rounded-lg {% if request.resolver_match.url_name == 'attendance_calendar' %}nav-item-active{% endif %}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span>Attendance</span>
+                    </a>
+                    {% elif user.role == 'teacher' %}
+                    <a href="{% url 'dashboard' %}" class="nav-item flex items-center px-4 py-2 rounded-lg {% if request.resolver_match.url_name == 'dashboard' %}nav-item-active{% endif %}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                        </svg>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <a href="{% url 'student_list' %}" class="nav-item flex items-center px-4 py-2 rounded-lg {% if request.resolver_match.url_name == 'student_list' %}nav-item-active{% endif %}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                        </svg>
+                        <span>My Students</span>
+                    </a>
+
+                    <a href="{% url 'course_list' %}" class="nav-item flex items-center px-4 py-2 rounded-lg {% if request.resolver_match.url_name == 'course_list' %}nav-item-active{% endif %}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path>
+                        </svg>
+                        <span>My Courses</span>
+                    </a>
+
+                    <a href="{% url 'attendance_calendar' %}" class="nav-item flex items-center px-4 py-2 rounded-lg {% if request.resolver_match.url_name == 'attendance_calendar' %}nav-item-active{% endif %}">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        <span>Attendance</span>
+                    </a>
+                    {% endif %}
+                </nav>
+
+                <!-- Bottom Section -->
+                <div class="p-4 border-t">
+                    <a href="{% url 'logout' %}" class="flex items-center px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg">
+                        <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                        </svg>
+                        <span>Logout</span>
+                    </a>
                 </div>
-            </aside>
-            {% endif %}
+            </div>
+        </aside>
         {% endif %}
 
+        <!-- Main Content -->
+        <main class="flex-1 min-h-screen">
             {% block content %}{% endblock %}
-          <div class="flex h-screen bg-gray-100">
+        </main>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
     <script>
         AOS.init();
+
+        // Mobile menu toggle
+        const mobileMenuButton = document.getElementById('mobile-menu-button');
+        const sidebar = document.querySelector('.sidebar');
+
+        mobileMenuButton.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+        });
+
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', (e) => {
+            if (window.innerWidth < 768 && 
+                !sidebar.contains(e.target) && 
+                !mobileMenuButton.contains(e.target)) {
+                sidebar.classList.remove('active');
+            }
+        });
     </script>
     {% block extra_js %}{% endblock %}
 </body>

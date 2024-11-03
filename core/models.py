@@ -59,6 +59,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 class Course(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField()
+    credits = models.IntegerField(default=3)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='courses')
     teacher = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='courses')
     created_at = models.DateTimeField(auto_now_add=True)

@@ -83,18 +83,15 @@ class TeacherCreationForm(forms.ModelForm):
         return user
 
 class StudentForm(forms.ModelForm):
-    # Multi-select field for courses
     courses = forms.ModelMultipleChoiceField(
         queryset=None,
         required=False,
-        widget=forms.CheckboxSelectMultiple(attrs={
-            'class': 'form-checkbox h-5 w-5 text-blue-600 rounded border-gray-300 focus:ring-blue-500'
-        })
+        widget=forms.CheckboxSelectMultiple()
     )
 
     class Meta:
         model = Student
-        fields = ['first_name', 'last_name', 'email', 'profile_picture']
+        fields = ['first_name', 'last_name', 'email', 'profile_picture', 'courses']
         widgets = {
             'first_name': forms.TextInput(attrs={
                 'class': 'mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500',
@@ -117,22 +114,22 @@ class StudentForm(forms.ModelForm):
         school = kwargs.pop('school', None)
         super().__init__(*args, **kwargs)
         if school:
-            # Filter courses by school
             self.fields['courses'].queryset = Course.objects.filter(school=school)
-            # Customize the course display to show name and description
             self.fields['courses'].label_from_instance = lambda obj: f"{obj.name} - {obj.description}"
+        
+        # Set initial courses for existing student
+        if self.instance.pk:
+            self.initial['courses'] = self.instance.courses.all()
 
     def save(self, commit=True):
         student = super().save(commit=False)
         if commit:
             student.save()
-            # Handle course assignments
-            self.save_courses(student)
+            # Clear existing courses and set new ones
+            student.courses.clear()
+            if self.cleaned_data.get('courses'):
+                student.courses.set(self.cleaned_data['courses'])
         return student
-
-    def save_courses(self, student):
-        if self.cleaned_data.get('courses'):
-            student.courses.set(self.cleaned_data['courses'])
 
 class CourseCreationForm(forms.ModelForm):
     teacher = forms.ModelChoiceField(queryset=User.objects.none())

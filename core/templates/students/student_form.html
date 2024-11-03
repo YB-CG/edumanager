@@ -1,12 +1,12 @@
 {% extends 'base/base.html' %}
 {% block content %}
 
-<div class="max-w-2xl mx-auto min-h-screen bg-gradient-to-br from-purple-50 to-blue-50 py-12">
+<div class="max-w-2xl mx-auto min-h-screen py-12">
     <div class="max-w-4xl mx-auto px-4">
         <!-- Form Card -->
         <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
             <!-- Header Section -->
-            <div class="bg-gradient-to-r from-purple-600 to-blue-600 px-8 py-8">
+            <div class="bg-blue-600 px-8 py-8">
                 <h1 class="text-3xl md:text-4xl font-bold text-white">
                     {% if form.instance.pk %}Edit Student{% else %}Add New Student{% endif %}
                 </h1>
@@ -17,7 +17,7 @@
 
             <!-- Form Section -->
             <div class="p-8">
-                <form method="POST" enctype="multipart/form-data" class="space-y-8">
+                <form method="POST" enctype="multipart/form-data" class="space-y-8" id="studentForm">
                     {% csrf_token %}
                     
                     <!-- Profile Picture Section -->
@@ -72,32 +72,48 @@
                         {% endfor %}
                     </div>
 
-                    <!-- Course Selection -->
+                    <!-- Enhanced Course Selection -->
                     <div class="mt-8">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-4">Course Enrollment</h3>
-                        <div class="bg-gray-50 rounded-xl p-6">
-                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900">Course Enrollment</h3>
+                            <div class="flex items-center gap-3">
+                                <span id="selectedCount" class="text-sm font-medium px-3 py-1 bg-purple-100 text-purple-700 rounded-full transition-all duration-300">
+                                    0 selected
+                                </span>
+                                <button type="button" 
+                                        onclick="toggleAllCourses()"
+                                        class="text-sm font-medium text-gray-600 hover:text-purple-600 transition-colors duration-200">
+                                    Select All
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-white rounded-lg border border-gray-200">
+                            <div class="divide-y divide-gray-200" id="courseList">
                                 {% for course in form.courses.field.queryset %}
-                                <div class="relative">
+                                <div class="relative flex items-center px-4 py-3 group hover:bg-gray-50">
                                     <input type="checkbox"
                                            id="course_{{ course.id }}"
                                            name="courses"
                                            value="{{ course.id }}"
                                            {% if course in form.courses.value %}checked{% endif %}
-                                           class="peer absolute h-0 w-0 opacity-0">
+                                           class="course-checkbox w-5 h-5 rounded border-gray-300 text-purple-600 
+                                                  focus:ring-purple-500 cursor-pointer transition-colors duration-200
+                                                  checked:bg-purple-500 checked:border-purple-500"
+                                           onchange="updateSelectedCount()">
                                     <label for="course_{{ course.id }}"
-                                           class="block p-4 rounded-lg border-2 border-gray-200
-                                                  peer-checked:border-purple-500 peer-checked:bg-purple-50
-                                                  hover:border-purple-300 cursor-pointer
-                                                  transition-all duration-200">
-                                        <div class="flex items-center justify-between mb-2">
-                                            <span class="font-medium text-gray-900">{{ course.name }}</span>
-                                            <svg class="w-5 h-5 text-purple-500 opacity-0 peer-checked:opacity-100 transition-opacity"
-                                                 fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/>
-                                            </svg>
+                                           class="flex-1 flex items-center justify-between ml-3 cursor-pointer">
+                                        <div>
+                                            <p class="font-medium text-gray-900 group-hover:text-purple-600 transition-colors duration-200">
+                                                {{ course.name }}
+                                            </p>
+                                            <p class="text-sm text-gray-500 line-clamp-1">{{ course.description }}</p>
                                         </div>
-                                        <p class="text-sm text-gray-500">{{ course.description }}</p>
+                                        <div class="flex items-center gap-2 ml-4">
+                                            <span class="px-2 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-full">
+                                                {{ course.credits }} Credits
+                                            </span>
+                                        </div>
                                     </label>
                                 </div>
                                 {% endfor %}
@@ -116,7 +132,7 @@
                             Cancel
                         </a>
                         <button type="submit" 
-                                class="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700
+                                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700
                                        transform transition-all duration-200 hover:scale-105 hover:shadow-lg
                                        flex items-center">
                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -126,8 +142,6 @@
                         </button>
                     </div>
                 </form>
-
-
             </div>
         </div>
     </div>
@@ -143,8 +157,35 @@ function previewImage(event) {
     reader.readAsDataURL(event.target.files[0]);
 }
 
+function updateSelectedCount() {
+    const checkboxes = document.querySelectorAll('.course-checkbox');
+    const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    const countDisplay = document.getElementById('selectedCount');
+    countDisplay.textContent = `${selectedCount} ${selectedCount === 1 ? 'course' : 'courses'} selected`;
+    
+    // Animate the counter
+    countDisplay.classList.add('scale-110', 'text-purple-600');
+    setTimeout(() => {
+        countDisplay.classList.remove('scale-110', 'text-purple-600');
+    }, 200);
+}
 
-// Toast Notification
+function toggleAllCourses() {
+    const checkboxes = document.querySelectorAll('.course-checkbox');
+    const anyUnchecked = Array.from(checkboxes).some(cb => !cb.checked);
+    
+    checkboxes.forEach(cb => {
+        cb.checked = anyUnchecked;
+    });
+    
+    updateSelectedCount();
+}
+
+// Initialize the selected count on page load
+document.addEventListener('DOMContentLoaded', function() {
+    updateSelectedCount();
+});
+
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-xl transform transition-all duration-300 translate-y-full
@@ -166,5 +207,16 @@ function showToast(message, type = 'success') {
         setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
+
+// Add form validation feedback
+document.getElementById('studentForm').addEventListener('submit', function(event) {
+    const checkboxes = document.querySelectorAll('.course-checkbox');
+    const selectedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    
+    if (selectedCount === 0) {
+        event.preventDefault();
+        showToast('Please select at least one course', 'error');
+    }
+});
 </script>
 {% endblock %}

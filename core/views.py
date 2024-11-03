@@ -3,7 +3,7 @@ from django.shortcuts import redirect
 from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.contrib.auth.views import LoginView, PasswordResetView, PasswordResetConfirmView
+from django.contrib.auth.views import LoginView, PasswordResetView, PasswordResetConfirmView, PasswordChangeView
 from django.views.generic import CreateView, UpdateView, ListView, TemplateView, DetailView, DeleteView, View
 from django.urls import reverse_lazy
 from django.utils import timezone
@@ -19,12 +19,9 @@ from .forms import (
     UserProfileForm, AttendanceFilterForm
 )
 import json
-import base64
-import tempfile
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from .services import FaceRecognitionService
-import os
 from django.db.models import Q
 from django.urls import reverse
 from django.contrib import messages
@@ -40,7 +37,6 @@ class CustomLoginView(LoginView):
 
     def get_success_url(self):
         return reverse_lazy('dashboard')
-
 
 class SignUpView(CreateView):
     template_name = 'authentication/signup.html'
@@ -83,10 +79,22 @@ class UserProfileView(LoginRequiredMixin, UpdateView):
     model = User
     form_class = UserProfileForm
     template_name = 'users/profile.html'
-    success_url = reverse_lazy('dashboard')
+    success_url = reverse_lazy('profile')
     
     def get_object(self):
         return self.request.user
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Profile updated successfully!')
+        return super().form_valid(form)
+
+class CustomPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
+    template_name = 'users/password_change.html'
+    success_url = reverse_lazy('profile')
+    
+    def form_valid(self, form):
+        messages.success(self.request, 'Password changed successfully!')
+        return super().form_valid(form)
 
 class DashboardView(LoginRequiredMixin, TemplateView):
     template_name = 'dashboard/home.html'
@@ -95,7 +103,109 @@ class DashboardView(LoginRequiredMixin, TemplateView):
         if self.request.user.role == 'admin':
             return ['dashboard/admin/home.html']
         return ['dashboard/teacher/home.html']
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        if user.role == 'admin':
+            # Context data for admin dashboard
+            school = user.school
+            
+            # Get base counts
+            context['total_students'] = Student.objects.filter(school=school).count()
+            context['total_teachers'] = User.objects.filter(
+                school=school,
+                role='teacher'
+            ).count()
+            context['total_courses'] = Course.objects.filter(school=school).count()
+            
+            # Get recent activities by combining latest users, courses, and students
+            recent_teachers = User.objects.filter(
+                school=school,
+                role='teacher'
+            ).order_by('-date_joined').values(
+                'first_name', 'last_name', 'date_joined', 'email'
+            )[:5]
 
+            recent_courses = Course.objects.filter(
+                school=school
+            ).order_by('-created_at').values(
+                'name', 'created_at', 'teacher__first_name', 'teacher__last_name'
+            )[:5]
+
+            recent_students = Student.objects.filter(
+                school=school
+            ).order_by('-created_at').values(
+                'first_name', 'last_name', 'created_at', 'email'
+            )[:5]
+
+            # Combine all activities into a single list
+            activities = []
+            
+            for teacher in recent_teachers:
+                activities.append({
+                    'type': 'teacher',
+                    'description': f"New teacher {teacher['first_name']} {teacher['last_name']} ({teacher['email']}) joined",
+                    'timestamp': teacher['date_joined'],
+                    'user': {
+                        'get_initials': f"{teacher['first_name'][0]}{teacher['last_name'][0]}",
+                        'get_full_name': f"{teacher['first_name']} {teacher['last_name']}"
+                    }
+                })
+
+            for course in recent_courses:
+                teacher_name = (f"{course['teacher__first_name']} {course['teacher__last_name']}" 
+                              if course['teacher__first_name'] and course['teacher__last_name'] 
+                              else "Unassigned")
+                activities.append({
+                    'type': 'course',
+                    'description': f"New course {course['name']} was created and assigned to {teacher_name}",
+                    'timestamp': course['created_at'],
+                    'user': {
+                        'get_initials': 'C',
+                        'get_full_name': course['name']
+                    }
+                })
+
+            for student in recent_students:
+                activities.append({
+                    'type': 'student',
+                    'description': f"New student {student['first_name']} {student['last_name']} ({student['email']}) was enrolled",
+                    'timestamp': student['created_at'],
+                    'user': {
+                        'get_initials': f"{student['first_name'][0]}{student['last_name'][0]}",
+                        'get_full_name': f"{student['first_name']} {student['last_name']}"
+                    }
+                })
+
+            # Sort activities by timestamp and get the 10 most recent
+            activities.sort(key=lambda x: x['timestamp'], reverse=True)
+            context['recent_activities'] = activities[:10]
+            
+        else:
+            # Teacher dashboard context (unchanged)
+            today = timezone.now().date()
+            teacher_courses = Course.objects.filter(teacher=user)
+            
+            teacher_students = Student.objects.filter(
+                courses__in=teacher_courses
+            ).distinct()
+            
+            context['my_students_count'] = teacher_students.count()
+            context['my_courses_count'] = teacher_courses.count()
+            
+            context['todays_attendance_count'] = Attendance.objects.filter(
+                course__in=teacher_courses,
+                date=today
+            ).count()
+            
+            context['recent_attendance'] = Attendance.objects.filter(
+                course__in=teacher_courses
+            ).select_related('student', 'course').order_by('-date')[:10]
+            
+        return context
+    
 # Teacher Management Views
 class TeacherListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = User
@@ -278,12 +388,36 @@ class CourseListView(LoginRequiredMixin, ListView):
     model = Course
     template_name = 'courses/course_list.html'
     context_object_name = 'courses'
+    paginate_by = 9  # Add pagination
     
     def get_queryset(self):
-        if self.request.user.role == 'admin':
-            return Course.objects.filter(school=self.request.user.school)
-        return Course.objects.filter(teacher=self.request.user)
-
+        queryset = Course.objects.filter(school=self.request.user.school)
+        if self.request.user.role != 'admin':
+            queryset = queryset.filter(teacher=self.request.user)
+            
+        # Search functionality
+        search_query = self.request.GET.get('q')
+        if search_query:
+            queryset = queryset.filter(
+                Q(name__icontains=search_query) |
+                Q(description__icontains=search_query)
+            )
+            
+        # Teacher filter
+        teacher_id = self.request.GET.get('teacher')
+        if teacher_id:
+            queryset = queryset.filter(teacher_id=teacher_id)
+            
+        return queryset.select_related('teacher')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['teachers'] = User.objects.filter(
+            school=self.request.user.school,
+            role='teacher'
+        )
+        return context
+    
 class CourseCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = Course
     form_class = CourseCreationForm
@@ -477,6 +611,9 @@ def process_frame(request, course_id):
                 request.user
             )
             
+            if message and "marked" in message: 
+                messages.success(request, message)
+            
             return JsonResponse({
                 'success': True,
                 'face_boxes': face_results,
@@ -503,16 +640,19 @@ def update_embeddings(request):
             success = face_service.update_embeddings()
             
             if success:
+                messages.success(request, 'Face embeddings updated successfully')
                 return JsonResponse({
                     'success': True,
                     'message': 'Face embeddings updated successfully'
                 })
             else:
+                messages.error(request, 'Error updating face embeddings')
                 return JsonResponse({
                     'success': False,
                     'message': 'Error updating face embeddings'
                 })
         except Exception as e:
+            messages.error(request, str(e))
             return JsonResponse({
                 'success': False,
                 'message': str(e)

@@ -1,89 +1,146 @@
 <!-- templates/courses/course_form.html -->
 {% extends 'base/base.html' %}
-
 {% block content %}
-<div class="container mx-auto px-4 py-8">
-    <div class="max-w-2xl mx-auto">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h1 class="text-3xl font-bold text-gray-800 mb-6">
-                {% if form.instance.pk %}
-                    Edit Course
-                {% else %}
-                    Create New Course
-                {% endif %}
-            </h1>
 
-            <form method="post" class="space-y-6">
-                {% csrf_token %}
-                
-                <!-- Course Name -->
-                <div>
-                    <label for="{{ form.name.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                        Course Name
-                    </label>
-                    {{ form.name }}
-                    {% if form.name.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>
-                    {% endif %}
-                </div>
+<div class="max-w-2xl mx-auto min-h-screen py-12">
+    <div class="max-w-4xl mx-auto px-4">
+        <!-- Form Card -->
+        <div class="bg-white rounded-3xl shadow-xl overflow-hidden">
+            <!-- Header Section -->
+            <div class="bg-blue-600 px-8 py-8">
+                <h1 class="text-3xl md:text-4xl font-bold text-white">
+                    {% if form.instance.pk %}Edit Course{% else %}Add New Course{% endif %}
+                </h1>
+                <p class="mt-2 text-blue-100">
+                    {% if form.instance.pk %}Update course information and teacher assignment{% else %}Create a new course{% endif %}
+                </p>
+            </div>
 
-                <!-- Description -->
-                <div>
-                    <label for="{{ form.description.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                        Description
-                    </label>
-                    {{ form.description }}
-                    {% if form.description.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.description.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <!-- Teacher Selection -->
-                <div>
-                    <label for="{{ form.teacher.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-1">
-                        Teacher
-                    </label>
-                    {{ form.teacher }}
-                    {% if form.teacher.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.teacher.errors.0 }}</p>
-                    {% endif %}
-                </div>
-
-                <!-- Students Selection -->
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-2">
-                        Students
-                    </label>
-                    <div class="max-h-60 overflow-y-auto border rounded-md p-3">
-                        {% for checkbox in form.students %}
-                        <div class="flex items-center space-x-3 py-2">
-                            {{ checkbox.tag }}
-                            <label for="{{ checkbox.id_for_label }}" class="text-sm text-gray-700">
-                                {{ checkbox.choice_label }}
+            <!-- Form Section -->
+            <div class="p-8">
+                <form method="POST" class="space-y-8" id="courseForm">
+                    {% csrf_token %}
+                    
+                    <!-- Course Information -->
+                    <div class="space-y-6">
+                        <!-- Course Name -->
+                        <div class="form-group">
+                            <label for="{{ form.name.id_for_label }}" 
+                                   class="block text-sm font-semibold text-gray-700 mb-2">
+                                Course Name
                             </label>
+                            <input type="text"
+                                   name="{{ form.name.name }}"
+                                   id="{{ form.name.id_for_label }}"
+                                   value="{{ form.name.value|default:'' }}"
+                                   class="block w-full px-4 py-3 rounded-lg border {% if form.name.errors %}border-red-500{% else %}border-gray-300{% endif %} 
+                                          focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                                          transition-all duration-200 ease-in-out"
+                                   required>
+                            {% if form.name.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.name.errors.0 }}</p>
+                            {% endif %}
                         </div>
-                        {% endfor %}
-                    </div>
-                    {% if form.students.errors %}
-                        <p class="mt-1 text-sm text-red-600">{{ form.students.errors.0 }}</p>
-                    {% endif %}
-                </div>
 
-                <!-- Form Actions -->
-                <div class="flex items-center justify-end space-x-4 pt-4">
-                    <a href="{% url 'course_list' %}" class="text-gray-600 hover:text-gray-800">
-                        Cancel
-                    </a>
-                    <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg">
-                        {% if form.instance.pk %}
-                            Update Course
-                        {% else %}
-                            Create Course
-                        {% endif %}
-                    </button>
-                </div>
-            </form>
+                        <!-- Course Description -->
+                        <div class="form-group">
+                            <label for="{{ form.description.id_for_label }}" 
+                                   class="block text-sm font-semibold text-gray-700 mb-2">
+                                Description
+                            </label>
+                            <textarea name="{{ form.description.name }}"
+                                      id="{{ form.description.id_for_label }}"
+                                      rows="4"
+                                      class="block w-full px-4 py-3 rounded-lg border {% if form.description.errors %}border-red-500{% else %}border-gray-300{% endif %} 
+                                             focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                                             transition-all duration-200 ease-in-out"
+                                      required>{{ form.description.value|default:'' }}</textarea>
+                            {% if form.description.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.description.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+
+                        <!-- Teacher Assignment -->
+                        <div class="form-group">
+                            <label for="{{ form.teacher.id_for_label }}" 
+                                   class="block text-sm font-semibold text-gray-700 mb-2">
+                                Assigned Teacher
+                            </label>
+                            <select name="{{ form.teacher.name }}"
+                                    id="{{ form.teacher.id_for_label }}"
+                                    class="block w-full px-4 py-3 rounded-lg border {% if form.teacher.errors %}border-red-500{% else %}border-gray-300{% endif %} 
+                                           focus:ring-2 focus:ring-blue-500 focus:border-transparent
+                                           transition-all duration-200 ease-in-out">
+                                <option value="">Select a teacher</option>
+                                {% for teacher in form.teacher.field.queryset %}
+                                    <option value="{{ teacher.id }}" 
+                                            {% if form.teacher.value|stringformat:"s" == teacher.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ teacher.get_full_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            {% if form.teacher.errors %}
+                            <p class="mt-2 text-sm text-red-600">{{ form.teacher.errors.0 }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex items-center justify-end space-x-4 mt-8">
+                        <a href="{% url 'course_list' %}" 
+                           class="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 
+                                  transition-all duration-200 flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                            </svg>
+                            Cancel
+                        </a>
+                        <button type="submit" 
+                                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700
+                                       transform transition-all duration-200 hover:scale-105 hover:shadow-lg
+                                       flex items-center">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                            </svg>
+                            {% if form.instance.pk %}Update Course{% else %}Create Course{% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-xl transform transition-all duration-300 translate-y-full
+                    flex items-center ${type === 'success' ? 'bg-blue-500' : 'bg-red-500'} text-white`;
+    
+    const icon = document.createElement('div');
+    icon.className = 'mr-3';
+    icon.innerHTML = type === 'success' 
+        ? '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
+        : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+    
+    toast.appendChild(icon);
+    toast.insertAdjacentText('beforeend', message);
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.classList.remove('translate-y-full'), 100);
+    setTimeout(() => {
+        toast.classList.add('translate-y-full');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Add form validation
+document.getElementById('courseForm').addEventListener('submit', function(event) {
+    const teacherSelect = document.querySelector('select[name="teacher"]');
+    if (!teacherSelect.value) {
+        event.preventDefault();
+        showToast('Please select a teacher', 'error');
+    }
+});
+</script>
 {% endblock %}

@@ -1,31 +1,254 @@
 <!-- templates/courses/course_list.html -->
 {% extends 'base/base.html' %}
+{% load static %}
 
 {% block content %}
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-3xl font-bold text-gray-800 mb-8">Courses</h1>
-    
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {% for course in courses %}
-        <a href="{% url 'course_detail' course.pk %}" class="block">
-            <div class="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 p-6">
-                <h2 class="text-xl font-semibold text-gray-800 mb-2">{{ course.name }}</h2>
-                <p class="text-gray-600 mb-4">{{ course.description|truncatewords:20 }}</p>
-                <div class="flex items-center text-sm text-gray-500">
-                    <span class="mr-4">
-                        <i class="fas fa-users mr-2"></i>
-                        {{ course.students.count }} students
-                    </span>
-                    <span>
-                        <i class="fas fa-clock mr-2"></i>
-                        {{ course.created_at|date:"M d, Y" }}
-                    </span>
+    <!-- Header Section -->
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-900">Courses</h1>
+            <p class="mt-1 text-sm text-gray-500">Manage your school's course catalog</p>
+        </div>
+        {% if user.role == 'admin' %}
+        <div class="mt-4 md:mt-0">
+            <a href="{% url 'course_create' %}" 
+               class="bg-blue-600 inline-flex items-center px-4 py-2 bg-[#1a73e8] text-white rounded-lg hover:bg-blue-600 
+                      transition-all duration-200 transform hover:scale-105 hover:shadow-lg">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                </svg>
+                Add New Course
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Search Section -->
+    <div class="bg-white rounded-xl shadow-sm p-6 mb-8">
+        <form method="get" class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1">
+                <div class="relative">
+                    <input type="text" 
+                           name="q" 
+                           value="{{ request.GET.q }}"
+                           placeholder="Search courses..." 
+                           class="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent">
+                    <svg class="absolute left-3 top-3 h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
                 </div>
             </div>
-        </a>
+            <div class="flex gap-4">
+                <select name="teacher" 
+                        class="px-4 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#1a73e8] focus:border-transparent">
+                    <option value="">All Teachers</option>
+                    {% for teacher in teachers %}
+                        <option value="{{ teacher.id }}" 
+                                {% if request.GET.teacher == teacher.id|stringformat:"s" %}selected{% endif %}>
+                            {{ teacher.get_full_name }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <button type="submit" 
+                        class="bg-blue-600 inline-flex items-center px-4 py-2 bg-[#1a73e8] text-white rounded-lg hover:bg-blue-600 
+                               transition-all duration-200 transform hover:scale-105 hover:shadow-lg">
+                    Apply Filters
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Courses Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for course in courses %}
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-100 
+                    transform hover:scale-105 transition-all duration-200">
+            <div class="p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <div>
+                        <h3 class="text-xl font-bold text-gray-800">{{ course.name }}</h3>
+                        <p class="text-gray-600 mt-1">{{ course.description|truncatewords:20 }}</p>
+                    </div>
+                    {% if user.role == 'admin' %}
+                    <div class="flex items-center space-x-2">
+                        <a href="{% url 'course_update' course.pk %}" 
+                           class="p-2 text-gray-600 hover:text-blue-600 rounded-lg hover:bg-blue-50 transition-colors duration-200"
+                           title="Edit Course">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                            </svg>
+                        </a>
+                        <button type="button"
+                                onclick="confirmDelete('{{ course.pk }}', '{{ course.name|escapejs }}')"
+                                class="p-2 text-gray-600 hover:text-red-600 rounded-lg hover:bg-red-50 transition-colors duration-200"
+                                title="Delete Course">
+                            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                            </svg>
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="flex items-center space-x-4 text-sm text-gray-600 mb-4">
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/>
+                        </svg>
+                        <span>{{ course.teacher.get_full_name }}</span>
+                    </div>
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                        </svg>
+                        <span>{{ course.students.count }} students</span>
+                    </div>
+                </div>
+
+                <div class="mt-4 flex justify-end">
+                    <a href="{% url 'course_detail' course.pk %}" 
+                       class="inline-flex items-center text-sm text-blue-600 hover:text-blue-700">
+                        View Details
+                        <svg class="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
+        </div>
         {% empty %}
-        <p class="text-gray-600">No courses found.</p>
+        <div class="col-span-full">
+            <div class="text-center py-12 bg-white rounded-xl shadow-lg border border-gray-100">
+                <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/>
+                </svg>
+                <h3 class="mt-4 text-lg font-medium text-gray-900">No courses found</h3>
+                <p class="mt-1 text-gray-500">Try adjusting your search or filter criteria</p>
+            </div>
+        </div>
         {% endfor %}
     </div>
+
+    <!-- Pagination -->
+    {% if is_paginated %}
+    <div class="mt-8 flex justify-center">
+        <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.teacher %}&teacher={{ request.GET.teacher }}{% endif %}" 
+               class="relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Previous
+            </a>
+            {% endif %}
+            
+            <span class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-blue-50 text-sm font-medium text-blue-700">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+            
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if request.GET.q %}&q={{ request.GET.q }}{% endif %}{% if request.GET.teacher %}&teacher={{ request.GET.teacher }}{% endif %}" 
+               class="relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50">
+                Next
+            </a>
+            {% endif %}
+        </nav>
+    </div>
+    {% endif %}
 </div>
+
+<!-- Delete Modal -->
+<div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 transform transition-all">
+            <div class="text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold text-gray-900 mb-2">Delete Course</h3>
+                <p class="text-sm text-gray-500">
+                    Are you sure you want to delete <span id="courseName" class="font-medium"></span>? This action cannot be undone and all associated data will be permanently removed.
+                </p>
+            </div>
+            <div class="mt-6 flex justify-end space-x-4">
+                <button type="button"
+                        onclick="closeDeleteModal()" 
+                        class="px-4 py-2 text-gray-500 hover:text-gray-700 transition-colors">
+                    Cancel
+                </button>
+                <form id="deleteForm" method="POST" class="inline">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700
+                                   transform transition-all duration-200 hover:scale-105 hover:shadow-lg
+                                   flex items-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                        Delete Course
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmDelete(courseId, courseName) {
+    document.getElementById('courseName').textContent = courseName;
+    deleteForm.action = `{% url 'course_delete' 0 %}`.replace('0', courseId);
+    document.getElementById('deleteModal').classList.remove('hidden');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.add('hidden');
+}
+
+document.getElementById('deleteForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    try {
+        const response = await fetch(this.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            },
+        });
+        
+        if (response.ok) {
+            showToast('Course deleted successfully', 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showToast('Error deleting course', 'error');
+        }
+    } catch (error) {
+        showToast('Error deleting course', 'error');
+    }
+    closeDeleteModal();
+});
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `fixed bottom-4 right-4 px-6 py-4 rounded-lg shadow-xl transform transition-all duration-300 translate-y-full
+                      flex items-center ${type === 'success' ? 'bg-green-500' : 'bg-red-500'} text-white`;
+    
+    const icon = document.createElement('div');
+    icon.className = 'mr-3';
+    icon.innerHTML = type === 'success' 
+        ? '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>'
+        : '<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
+    
+    toast.appendChild(icon);
+    toast.insertAdjacentText('beforeend', message);
+    document.body.appendChild(toast);
+
+    setTimeout(() => toast.classList.remove('translate-y-full'), 100);
+    setTimeout(() => {
+        toast.classList.add('translate-y-full');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+</script>
 {% endblock %}
