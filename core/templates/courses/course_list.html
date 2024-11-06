@@ -105,7 +105,7 @@
                         <span>{{ course.students.count }} students</span>
                     </div>
                 </div>
-
+                {% if user.role == 'teacher' %}
                 <div class="mt-4 flex justify-end">
                     <a href="{% url 'course_detail' course.pk %}" 
                        class="inline-flex items-center text-sm text-blue-600 hover:text-blue-700">
@@ -115,6 +115,8 @@
                         </svg>
                     </a>
                 </div>
+                {% endif %}
+                
             </div>
         </div>
         {% empty %}

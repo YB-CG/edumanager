@@ -469,89 +469,6 @@ class CourseDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         return self.request.user.role == 'admin'
 
 # Attendance Management Views
-# class AttendanceMarkView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
-#     model = Attendance
-#     fields = ['student', 'status']
-#     template_name = 'attendance/mark_attendance.html'
-    
-#     def test_func(self):
-#         return self.request.user.role == 'teacher'
-    
-#     def form_valid(self, form):
-#         form.instance.course_id = self.kwargs['course_id']
-#         form.instance.date = timezone.now().date()
-#         form.instance.marked_by = self.request.user
-#         return super().form_valid(form)
-
-# views.py
-# class AttendanceCalendarView(LoginRequiredMixin, TemplateView):
-#     template_name = 'attendance/calendar.html'
-    
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-#         current_date = timezone.now().date()
-        
-#         # Get courses based on user role
-#         if self.request.user.role == 'admin':
-#             courses = Course.objects.filter(school=self.request.user.school)
-#         else:
-#             courses = Course.objects.filter(teacher=self.request.user)
-            
-#         # Get all students for the courses
-#         students = Student.objects.filter(courses__in=courses).distinct()
-        
-#         # Get attendance data for the current month
-#         attendance_data = Attendance.objects.filter(
-#             course__in=courses,
-#             date__month=current_date.month,
-#             date__year=current_date.year
-#         ).select_related('course', 'student')
-        
-#         # Format attendance data for the calendar
-#         calendar_data = {}
-        
-#         # Initialize all days of the month with null attendance
-#         first_day = current_date.replace(day=1)
-#         last_day = (first_day + timezone.timedelta(days=32)).replace(day=1) - timezone.timedelta(days=1)
-        
-#         for day in range(1, last_day.day + 1):
-#             date_str = current_date.replace(day=day).strftime('%Y-%m-%d')
-#             calendar_data[date_str] = {
-#                 'present': 0,
-#                 'total': 0,
-#                 'students': [],
-#                 'has_attendance': False  # New flag to track if attendance was taken
-#             }
-        
-#         # Populate actual attendance data
-#         for attendance in attendance_data:
-#             date_str = attendance.date.strftime('%Y-%m-%d')
-#             if date_str not in calendar_data:
-#                 calendar_data[date_str] = {
-#                     'present': 0,
-#                     'total': 0,
-#                     'students': [],
-#                     'has_attendance': True
-#                 }
-            
-#             calendar_data[date_str]['total'] += 1
-#             calendar_data[date_str]['has_attendance'] = True
-#             if attendance.status == 'present':
-#                 calendar_data[date_str]['present'] += 1
-            
-#             calendar_data[date_str]['students'].append({
-#                 'id': attendance.student.id,
-#                 'name': attendance.student.get_full_name(),
-#                 'status': attendance.status
-#             })
-        
-#         context.update({
-#             'courses': courses,
-#             'students': students,
-#             'attendance_data': calendar_data,
-#             'current_date': current_date
-#         })
-#         return context
 
 class AttendanceCalendarView(LoginRequiredMixin, TemplateView):
     template_name = 'attendance/calendar.html'
@@ -643,29 +560,6 @@ class UpdateAttendanceView(LoginRequiredMixin, UserPassesTestMixin, View):
                 'error': str(e)
             }, status=400)
                 
-# class DailyAttendanceView(LoginRequiredMixin, TemplateView):
-#     template_name = 'attendance/daily_report.html'
-    
-#     def get_context_data(self, **kwargs):
-#         context = super().get_context_data(**kwargs)
-#         date = self.request.GET.get('date', timezone.now().date())
-        
-#         if self.request.user.role == 'admin':
-#             courses = Course.objects.filter(school=self.request.user.school)
-#         else:
-#             courses = Course.objects.filter(teacher=self.request.user)
-        
-#         attendance_data = Attendance.objects.filter(
-#             course__in=courses,
-#             date=date
-#         ).select_related('course', 'student')
-        
-#         context.update({
-#             'attendance_data': attendance_data,
-#             'date': date,
-#             'courses': courses
-#         })
-#         return context
 
 # Report Generation Views
 def get_date_range(period, start_date=None, end_date=None):
